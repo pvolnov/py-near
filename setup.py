@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="async_near",
     author_email="petr@herewallet.app",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/here-wallet/async_near",
     packages=find_packages(include=["async_near"]),
     version="0.1.1.1",
     description="Near async rpc client",
