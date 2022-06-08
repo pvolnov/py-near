@@ -15,9 +15,6 @@ Use JsonProvider to process api calls to NEAR rpc node
 - betanet https://rpc.betanet.near.org (may be unstable)
 - localnet http://localhost:3030
 
-- 
-
-
 ```python
 from async_near.providers import JsonProvider
 jp = JsonProvider(rpc_url)
@@ -44,7 +41,7 @@ signer.sign(message)
 ```
 
 
-### Signer
+### Account
 
 Use Account to create and execute transactions
     
