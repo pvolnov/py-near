@@ -21,10 +21,10 @@ class Account(object):
     _account: dict
     _access_key: dict
 
-    def __init__(self, provider: JsonProvider, signer: Signer, account_id: str):
+    def __init__(self, provider: JsonProvider, signer: Signer):
         self._provider = provider
         self._signer = signer
-        self._account_id = account_id
+        self._account_id = signer.account_id
 
     async def startup(self):
         self._account = await self._provider.get_account(self._account_id)
