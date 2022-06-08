@@ -1,11 +1,18 @@
 from setuptools import find_packages, setup
 
+with open("README.md", "r", encoding="utf-8") as fh:
+    long_description = fh.read()
+
 setup(
-    name='async_near',
-    packages=find_packages(include=['async_near']),
-    version='0.1.1',
-    description='Near async rpc client',
-    author='Petr Volnov',
-    license='MIT',
-    install_requires=['base58', 'ed25519', 'aiohttp'],
+    name="async_near",
+    author_email="petr@herewallet.app",
+    url="https://github.com/pypa/sampleproject",
+    packages=find_packages(include=["async_near"]),
+    version="0.1.1.1",
+    description="Near async rpc client",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author="Petr Volnov",
+    license="MIT",
+    install_requires=["base58", "ed25519", "aiohttp"],
 )
