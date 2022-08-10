@@ -66,7 +66,7 @@ Make contract calls
 
 ```python
 
-btc_amount = (await acc.view_function("btc_contract_id", "available_btc", {}))["result"]
+btc_amount = (await acc.view_function("btc_contract_id", "available_btc", {})).result
 
 
 await acc.function_call(
