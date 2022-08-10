@@ -2,9 +2,24 @@ import aiohttp
 import base64
 import json
 
+from async_near.exceptions.provider import UnknownBlockError, InvalidAccount, NoContractCodeError, UnknownAccount, \
+    TooLargeContractStateError, UnavailableShardError, NoSyncedBlocksError, InternalError, NoSyncedYetError, \
+    InvalidTransactionError, RpcTimeoutError, UnknownAccessKeyError
 
-class JsonProviderError(Exception):
-    pass
+_ERROR_CODE_TO_EXCEPTION = {
+    "UNKNOWN_BLOCK": UnknownBlockError,
+    "INVALID_ACCOUNT": InvalidAccount,
+    "UNKNOWN_ACCOUNT": UnknownAccount,
+    "NO_CONTRACT_CODE": NoContractCodeError,
+    "TOO_LARGE_CONTRACT_STATE": TooLargeContractStateError,
+    "UNAVAILABLE_SHARD": UnavailableShardError,
+    "NO_SYNCED_BLOCKS": NoSyncedBlocksError,
+    "INTERNAL_ERROR": InternalError,
+    "NOT_SYNCED_YET": NoSyncedYetError,
+    "INVALID_TRANSACTION": InvalidTransactionError,
+    "TIMEOUT_ERROR": RpcTimeoutError,
+    "UNKNOWN_ACCESS_KEY": UnknownAccessKeyError,
+}
 
 
 class JsonProvider(object):
@@ -25,11 +40,14 @@ class JsonProvider(object):
             content = json.loads(await r.text())
 
         if "error" in content:
-            raise JsonProviderError(content["error"])
+            error_code = content["error"].get("cause", {}).get("name", "")
+            raise _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(content["error"]["data"])
         return content["result"]
 
     async def send_tx(self, signed_tx):
-        return await self.json_rpc("broadcast_tx_async", [base64.b64encode(signed_tx).decode("utf8")])
+        return await self.json_rpc(
+            "broadcast_tx_async", [base64.b64encode(signed_tx).decode("utf8")]
+        )
 
     async def send_tx_and_wait(self, signed_tx, timeout):
         return await self.json_rpc(
@@ -103,12 +121,16 @@ class JsonProvider(object):
         return await self.json_rpc("tx", [tx_hash, tx_recipient_id])
 
     async def get_changes_in_block(self, changes_in_block_request):
-        return await self.json_rpc("EXPERIMENTAL_changes_in_block", changes_in_block_request)
+        return await self.json_rpc(
+            "EXPERIMENTAL_changes_in_block", changes_in_block_request
+        )
 
     async def get_validators_ordered(self, block_hash):
         return await self.json_rpc("EXPERIMENTAL_validators_ordered", [block_hash])
 
-    async def get_light_client_proof(self, outcome_type, tx_or_receipt_id, sender_or_receiver_id, light_client_head):
+    async def get_light_client_proof(
+        self, outcome_type, tx_or_receipt_id, sender_or_receiver_id, light_client_head
+    ):
         if outcome_type == "receipt":
             params = {
                 "type": "receipt",

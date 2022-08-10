@@ -3,14 +3,43 @@ import json
 import itertools
 
 from async_near import transactions
+from async_near.exceptions.execution import (
+    AccountAlreadyExistsError,
+    AccountDoesNotExistError,
+    CreateAccountNotAllowedError,
+    ActorNoPermissionError,
+    DeleteKeyDoesNotExistError,
+    AddKeyAlreadyExistsError,
+    DeleteAccountStakingError,
+    DeleteAccountHasRentError,
+    RentUnpaidError,
+    TriesToUnstakeError,
+    TriesToStakeError,
+    FunctionCallError,
+    NewReceiptValidationError,
+)
+from async_near.models import TransactionResult, ViewFunctionResult
 from async_near.signer import Signer
 from async_near.providers import JsonProvider
 
 DEFAULT_ATTACHED_GAS = 200000000000000
 
 
-class TransactionError(Exception):
-    pass
+_ERROR_TYPE_TO_EXCEPTION = {
+    "AccountAlreadyExists": AccountAlreadyExistsError,
+    "AccountDoesNotExist": AccountDoesNotExistError,
+    "CreateAccountNotAllowed": CreateAccountNotAllowedError,
+    "ActorNoPermission": ActorNoPermissionError,
+    "DeleteKeyDoesNotExist": DeleteKeyDoesNotExistError,
+    "AddKeyAlreadyExists": AddKeyAlreadyExistsError,
+    "DeleteAccountStaking": DeleteAccountStakingError,
+    "DeleteAccountHasRent": DeleteAccountHasRentError,
+    "RentUnpaid": RentUnpaidError,
+    "TriesToUnstake": TriesToUnstakeError,
+    "TriesToStake": TriesToStakeError,
+    "FunctionCallError": FunctionCallError,
+    "NewReceiptValidationError": NewReceiptValidationError,
+}
 
 
 class ViewFunctionError(Exception):
@@ -35,25 +64,24 @@ class Account(object):
     async def _sync_acc(self):
         self._account = await self._provider.get_account(self._account_id)
 
-    async def _sign_and_submit_tx(self, receiver_id, actions):
+    async def _sign_and_submit_tx(self, receiver_id, actions) -> TransactionResult:
         self._access_key["nonce"] += 1
-        block_hash = (await self._provider.get_status())["sync_info"]["latest_block_hash"]
+        block_hash = (await self._provider.get_status())["sync_info"][
+            "latest_block_hash"
+        ]
         block_hash = base58.b58decode(block_hash.encode("utf8"))
         serialzed_tx = transactions.sign_and_serialize_transaction(
             receiver_id, self._access_key["nonce"], actions, block_hash, self._signer
         )
         result = await self._provider.send_tx_and_wait(serialzed_tx, 10)
-        for outcome in itertools.chain([result["transaction_outcome"]], result["receipts_outcome"]):
-            for log in outcome["outcome"]["logs"]:
-                print("Log:", log)
-
         if "Failure" in result["status"]:
-            _, value = list(result["status"]["Failure"]["ActionError"]["kind"].items())[0]
-            key, value = list(value.items())[0]
-            raise TransactionError(f"{key}: {value}")
+            error_type, args = list(
+                result["status"]["Failure"]["ActionError"]["kind"].items()
+            )[0]
+            raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
         await self._sync_acc()
 
-        return result
+        return TransactionResult(**result)
 
     @property
     def account_id(self):
@@ -81,9 +109,13 @@ class Account(object):
 
     async def send_money(self, account_id, amount):
         """Sends funds to given account_id given amount."""
-        return await self._sign_and_submit_tx(account_id, [transactions.create_transfer_action(amount)])
+        return await self._sign_and_submit_tx(
+            account_id, [transactions.create_transfer_action(amount)]
+        )
 
-    async def function_call(self, contract_id, method_name, args, gas=DEFAULT_ATTACHED_GAS, amount=0):
+    async def function_call(
+        self, contract_id, method_name, args, gas=DEFAULT_ATTACHED_GAS, amount=0
+    ):
         args = json.dumps(args).encode("utf8")
         return await self._sign_and_submit_tx(
             contract_id,
@@ -109,12 +141,18 @@ class Account(object):
             self._account_id, [transactions.create_staking_action(public_key, amount)]
         )
 
-    async def create_and_deploy_contract(self, contract_id, public_key, contract_code, initial_balance):
+    async def create_and_deploy_contract(
+        self, contract_id, public_key, contract_code, initial_balance
+    ):
         actions = [
             transactions.create_create_account_action(),
             transactions.create_transfer_action(initial_balance),
             transactions.create_deploy_contract_action(contract_code),
-        ] + ([transactions.create_full_access_key_action(public_key)] if public_key is not None else [])
+        ] + (
+            [transactions.create_full_access_key_action(public_key)]
+            if public_key is not None
+            else []
+        )
         return await self._sign_and_submit_tx(contract_id, actions)
 
     async def create_deploy_and_init_contract(
@@ -133,12 +171,18 @@ class Account(object):
             transactions.create_transfer_action(initial_balance),
             transactions.create_deploy_contract_action(contract_code),
             transactions.create_function_call_action(init_method_name, args, gas, 0),
-        ] + ([transactions.create_full_access_key_action(public_key)] if public_key is not None else [])
+        ] + (
+            [transactions.create_full_access_key_action(public_key)]
+            if public_key is not None
+            else []
+        )
         return await self._sign_and_submit_tx(contract_id, actions)
 
-    async def view_function(self, contract_id, method_name, args):
-        result = await self._provider.view_call(contract_id, method_name, json.dumps(args).encode("utf8"))
+    async def view_function(self, contract_id, method_name, args) -> ViewFunctionResult:
+        result = await self._provider.view_call(
+            contract_id, method_name, json.dumps(args).encode("utf8")
+        )
         if "error" in result:
             raise ViewFunctionError(result["error"])
         result["result"] = json.loads("".join([chr(x) for x in result["result"]]))
-        return result
+        return ViewFunctionResult(**result)
