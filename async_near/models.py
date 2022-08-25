@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Any
 
 
 class ReceiptOutcome:
@@ -75,7 +75,7 @@ class ViewFunctionResult:
     block_hash: str
     block_height: str
     logs: List[str]
-    result: str
+    result: Any
 
     def __init__(self, block_hash, block_height, logs, result):
         self.block_hash = block_hash

@@ -49,7 +49,7 @@ class JsonProvider(object):
             "broadcast_tx_async", [base64.b64encode(signed_tx).decode("utf8")]
         )
 
-    async def send_tx_and_wait(self, signed_tx, timeout):
+    async def send_tx_and_wait(self, signed_tx, timeout=60):
         return await self.json_rpc(
             "broadcast_tx_commit",
             [base64.b64encode(signed_tx).decode("utf8")],

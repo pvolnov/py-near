@@ -73,7 +73,7 @@ class Account(object):
         serialzed_tx = transactions.sign_and_serialize_transaction(
             receiver_id, self._access_key["nonce"], actions, block_hash, self._signer
         )
-        result = await self._provider.send_tx_and_wait(serialzed_tx, 10)
+        result = await self._provider.send_tx_and_wait(serialzed_tx)
         if "Failure" in result["status"]:
             error_type, args = list(
                 result["status"]["Failure"]["ActionError"]["kind"].items()

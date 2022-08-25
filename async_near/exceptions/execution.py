@@ -1,3 +1,6 @@
+import json
+
+
 class ActionErrorKind(Exception):
     pass
 
@@ -141,10 +144,11 @@ class FunctionCallError(ActionErrorKind):
     An error occurred during a `FunctionCall` Action.
     """
 
-    execution_error: str
+    error: dict
 
-    def __init__(self, ExecutionError: str):
-        self.execution_error = ExecutionError
+    def __init__(self, **kwargs):
+        super().__init__(json.dumps(kwargs))
+        self.error = kwargs
 
 
 class NewReceiptValidationError(ActionErrorKind):
