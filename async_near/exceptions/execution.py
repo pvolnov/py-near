@@ -1,6 +1,10 @@
 import json
 
 
+class RpcNotAvailableError(Exception):
+    pass
+
+
 class ActionErrorKind(Exception):
     pass
 

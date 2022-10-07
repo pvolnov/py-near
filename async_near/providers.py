@@ -2,9 +2,23 @@ import aiohttp
 import base64
 import json
 
-from async_near.exceptions.provider import UnknownBlockError, InvalidAccount, NoContractCodeError, UnknownAccount, \
-    TooLargeContractStateError, UnavailableShardError, NoSyncedBlocksError, InternalError, NoSyncedYetError, \
-    InvalidTransactionError, RpcTimeoutError, UnknownAccessKeyError
+from aiohttp import ClientResponseError
+
+from async_near.exceptions.execution import RpcNotAvailableError
+from async_near.exceptions.provider import (
+    UnknownBlockError,
+    InvalidAccount,
+    NoContractCodeError,
+    UnknownAccount,
+    TooLargeContractStateError,
+    UnavailableShardError,
+    NoSyncedBlocksError,
+    InternalError,
+    NoSyncedYetError,
+    InvalidTransactionError,
+    RpcTimeoutError,
+    UnknownAccessKeyError,
+)
 
 _ERROR_CODE_TO_EXCEPTION = {
     "UNKNOWN_BLOCK": UnknownBlockError,
@@ -25,23 +39,38 @@ _ERROR_CODE_TO_EXCEPTION = {
 class JsonProvider(object):
     def __init__(self, rpc_addr):
         if isinstance(rpc_addr, tuple):
-            self._rpc_addr = "http://{}:{}".format(*rpc_addr)
+            self._rpc_addresses = ["http://{}:{}".format(*rpc_addr)]
+        elif isinstance(rpc_addr, list):
+            self._rpc_addresses = rpc_addr
         else:
-            self._rpc_addr = rpc_addr
-
-    def rpc_addr(self):
-        return self._rpc_addr
+            self._rpc_addresses = [rpc_addr]
 
     async def json_rpc(self, method, params, timeout=20):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
-        async with aiohttp.ClientSession() as session:
-            r = await session.post(self.rpc_addr(), json=j, timeout=timeout)
-            r.raise_for_status()
-            content = json.loads(await r.text())
+
+        content = None
+        for rpc_addr in self._rpc_addresses:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    r = await session.post(rpc_addr, json=j, timeout=timeout)
+                    r.raise_for_status()
+                    content = json.loads(await r.text())
+                if self._rpc_addresses[0] != rpc_addr:
+                    self._rpc_addresses.remove(rpc_addr)
+                    self._rpc_addresses.insert(0, rpc_addr)
+            except ClientResponseError:
+                continue
+            except ConnectionError:
+                continue
+
+        if not content:
+            raise RpcNotAvailableError("RPC not available")
 
         if "error" in content:
             error_code = content["error"].get("cause", {}).get("name", "")
-            raise _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(content["error"]["data"])
+            raise _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(
+                content["error"]["data"]
+            )
         return content["result"]
 
     async def send_tx(self, signed_tx):
