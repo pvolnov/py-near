@@ -2,7 +2,7 @@ import aiohttp
 import base64
 import json
 
-from aiohttp import ClientResponseError
+from aiohttp import ClientResponseError, ClientConnectorError
 
 from async_near.exceptions.execution import RpcNotAvailableError
 from async_near.exceptions.provider import (
@@ -45,7 +45,7 @@ class JsonProvider(object):
         else:
             self._rpc_addresses = [rpc_addr]
 
-    async def json_rpc(self, method, params, timeout=20):
+    async def json_rpc(self, method, params, timeout=60):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
@@ -58,7 +58,12 @@ class JsonProvider(object):
                 if self._rpc_addresses[0] != rpc_addr:
                     self._rpc_addresses.remove(rpc_addr)
                     self._rpc_addresses.insert(0, rpc_addr)
+                break
+            except TimeoutError:
+                continue
             except ClientResponseError:
+                continue
+            except ClientConnectorError:
                 continue
             except ConnectionError:
                 continue
@@ -87,7 +92,7 @@ class JsonProvider(object):
 
     async def get_status(self):
         async with aiohttp.ClientSession() as session:
-            r = await session.get("%s/status" % self.rpc_addr(), timeout=5)
+            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=5)
             r.raise_for_status()
             return json.loads(await r.text())
 
