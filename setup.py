@@ -8,7 +8,7 @@ setup(
     author_email="petr@herewallet.app",
     url="https://github.com/here-wallet/async_near",
     packages=find_packages(include=["async_near", "async_near.exceptions"]),
-    version="1.0.8",
+    version="1.0.9",
     description="Near async rpc client",
     long_description=long_description,
     long_description_content_type="text/markdown",
