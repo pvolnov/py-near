@@ -56,6 +56,7 @@ class Account(object):
         self._account_id = signer.account_id
 
     async def startup(self):
+        await self._provider.startup()
         self._account = await self._provider.get_account(self._account_id)
         self._access_key = await self._provider.get_access_key(
             self._account_id, self._signer.key_pair.encoded_public_key()
