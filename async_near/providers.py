@@ -20,6 +20,8 @@ from async_near.exceptions.provider import (
     InvalidTransactionError,
     RpcTimeoutError,
     UnknownAccessKeyError,
+    TxExecutionError,
+    ERROR_CODE_TO_EXCEPTION,
 )
 
 _ERROR_CODE_TO_EXCEPTION = {
@@ -80,9 +82,17 @@ class JsonProvider(object):
 
         if "error" in content:
             error_code = content["error"].get("cause", {}).get("name", "")
-            raise _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(
-                content["error"]["data"]
-            )
+            body = content["error"]["data"]
+            error = _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(body)
+            while True:
+                if not isinstance(body, dict):
+                    break
+                key, body = list(body.items())[0]
+                if key in ERROR_CODE_TO_EXCEPTION:
+                    error = ERROR_CODE_TO_EXCEPTION[key](body)
+                else:
+                    break
+            raise error
         return content["result"]
 
     async def send_tx(self, signed_tx):
