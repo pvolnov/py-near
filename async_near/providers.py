@@ -41,7 +41,6 @@ _ERROR_CODE_TO_EXCEPTION = {
 
 
 class JsonProvider(object):
-    _lock: asyncio.Lock
 
     def __init__(self, rpc_addr):
         if isinstance(rpc_addr, tuple):
@@ -51,31 +50,27 @@ class JsonProvider(object):
         else:
             self._rpc_addresses = [rpc_addr]
 
-    async def startup(self):
-        self._lock = asyncio.Lock()
-
     async def json_rpc(self, method, params, timeout=60):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
-        with await self._lock:
-            for rpc_addr in self._rpc_addresses:
-                try:
-                    async with aiohttp.ClientSession() as session:
-                        r = await session.post(rpc_addr, json=j, timeout=timeout)
-                        r.raise_for_status()
-                        content = json.loads(await r.text())
-                    if self._rpc_addresses[0] != rpc_addr:
-                        self._rpc_addresses.remove(rpc_addr)
-                        self._rpc_addresses.insert(0, rpc_addr)
-                        print("Switching RPC to %s" % rpc_addr)
-                    break
-                except ClientResponseError:
-                    continue
-                except ClientConnectorError:
-                    continue
-                except ConnectionError:
-                    continue
+        for rpc_addr in self._rpc_addresses:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    r = await session.post(rpc_addr, json=j, timeout=timeout)
+                    r.raise_for_status()
+                    content = json.loads(await r.text())
+                if self._rpc_addresses[0] != rpc_addr:
+                    self._rpc_addresses.remove(rpc_addr)
+                    self._rpc_addresses.insert(0, rpc_addr)
+                    print("Switching RPC to %s" % rpc_addr)
+                break
+            except ClientResponseError:
+                continue
+            except ClientConnectorError:
+                continue
+            except ConnectionError:
+                continue
 
         if not content:
             raise RpcNotAvailableError("RPC not available")

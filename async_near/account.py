@@ -1,3 +1,5 @@
+import asyncio
+
 import base58
 import json
 import itertools
@@ -49,6 +51,7 @@ class ViewFunctionError(Exception):
 class Account(object):
     _account: dict
     _access_key: dict
+    _lock: asyncio.Lock
 
     def __init__(self, provider: JsonProvider, signer: Signer):
         self._provider = provider
@@ -56,7 +59,7 @@ class Account(object):
         self._account_id = signer.account_id
 
     async def startup(self):
-        await self._provider.startup()
+        self._lock = asyncio.Lock()
         self._account = await self._provider.get_account(self._account_id)
         self._access_key = await self._provider.get_access_key(
             self._account_id, self._signer.key_pair.encoded_public_key()
@@ -66,22 +69,26 @@ class Account(object):
         self._account = await self._provider.get_account(self._account_id)
 
     async def _sign_and_submit_tx(self, receiver_id, actions) -> TransactionResult:
-        self._access_key["nonce"] += 1
-        block_hash = (await self._provider.get_status())["sync_info"][
-            "latest_block_hash"
-        ]
-        block_hash = base58.b58decode(block_hash.encode("utf8"))
-        serialzed_tx = transactions.sign_and_serialize_transaction(
-            receiver_id, self._access_key["nonce"], actions, block_hash, self._signer
-        )
-        result = await self._provider.send_tx_and_wait(serialzed_tx)
-        if "Failure" in result["status"]:
-            error_type, args = list(
-                result["status"]["Failure"]["ActionError"]["kind"].items()
-            )[0]
-            raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
-        await self._sync_acc()
-
+        async with self._lock:
+            self._access_key["nonce"] += 1
+            block_hash = (await self._provider.get_status())["sync_info"][
+                "latest_block_hash"
+            ]
+            block_hash = base58.b58decode(block_hash.encode("utf8"))
+            serialzed_tx = transactions.sign_and_serialize_transaction(
+                receiver_id,
+                self._access_key["nonce"],
+                actions,
+                block_hash,
+                self._signer,
+            )
+            result = await self._provider.send_tx_and_wait(serialzed_tx)
+            if "Failure" in result["status"]:
+                error_type, args = list(
+                    result["status"]["Failure"]["ActionError"]["kind"].items()
+                )[0]
+                raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
+            await self._sync_acc()
         return TransactionResult(**result)
 
     @property
