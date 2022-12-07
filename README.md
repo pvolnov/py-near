@@ -15,11 +15,20 @@ Use JsonProvider to process api calls to NEAR rpc node
 - betanet https://rpc.betanet.near.org (may be unstable)
 - localnet http://localhost:3030
 
-```python
-from async_near.providers import JsonProvider
-jp = JsonProvider(rpc_url)
 
-res = jp.view_call(account_id, method_name, args, finality="optimistic")
+## Init user
+```python
+json_provider = JsonProvider("https://rpc.herewallet.app")
+acc = Account(
+    json_provider,
+    Signer(
+        "mydev.near",
+        KeyPair(
+            "ed25519:..."
+        ),
+    ),
+)
+await acc.startup()
 ```
 
 
