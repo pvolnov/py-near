@@ -78,6 +78,49 @@ await acc.function_call(
 
 
 
+```angular2html
+Example
+
+    async def create_and_deploy_contract(
+        self, contract_id, public_key, contract_code, initial_balance
+    ):
+        actions = [
+            transactions.create_create_account_action(),
+            transactions.create_transfer_action(initial_balance),
+            transactions.create_deploy_contract_action(contract_code),
+        ] + (
+            [transactions.create_full_access_key_action(public_key)]
+            if public_key is not None
+            else []
+        )
+        return await self._sign_and_submit_tx(contract_id, actions)
+
+    async def create_deploy_and_init_contract(
+        self,
+        contract_id,
+        public_key,
+        contract_code,
+        initial_balance,
+        args,
+        gas=DEFAULT_ATTACHED_GAS,
+        init_method_name="new",
+    ):
+        args = json.dumps(args).encode("utf8")
+        actions = [
+            transactions.create_create_account_action(),
+            transactions.create_transfer_action(initial_balance),
+            transactions.create_deploy_contract_action(contract_code),
+            transactions.create_function_call_action(init_method_name, args, gas, 0),
+        ] + (
+            [transactions.create_full_access_key_action(public_key)]
+            if public_key is not None
+            else []
+        )
+        return await self._sign_and_submit_tx(contract_id, actions)
+```
+
+
+
 
 # License
 

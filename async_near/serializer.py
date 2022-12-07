@@ -65,7 +65,7 @@ class BinarySerializer:
             for idx, (fieldName, fieldType) in enumerate(structSchema["values"]):
                 if fieldName == name:
                     self.serialize_num(idx, 1)
-                    self.serialize_field(getattr(obj, fieldName), fieldType)
+                    self.serialize_field(obj.data, fieldType)
                     break
         else:
             assert False, structSchema

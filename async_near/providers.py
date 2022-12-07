@@ -1,9 +1,7 @@
-import asyncio
-
-import aiohttp
 import base64
 import json
 
+import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
 
 from async_near.exceptions.execution import RpcNotAvailableError
@@ -20,7 +18,6 @@ from async_near.exceptions.provider import (
     InvalidTransactionError,
     RpcTimeoutError,
     UnknownAccessKeyError,
-    TxExecutionError,
     ERROR_CODE_TO_EXCEPTION,
 )
 

@@ -1,4 +1,6 @@
-from typing import List, Any
+from dataclasses import dataclass
+from enum import Enum
+from typing import List, Any, Optional
 
 
 class ReceiptOutcome:
@@ -82,3 +84,44 @@ class ViewFunctionResult:
         self.block_height = block_height
         self.logs = logs
         self.result = result
+
+
+class PublicKeyPermissionType(str, Enum):
+    FULL_ACCESS = "FullAccess"
+    FUNCTION_CALL = "FunctionCall"
+
+
+@dataclass
+class AccessKey:
+    permission_type: PublicKeyPermissionType
+    nonce: int
+    allowance: Optional[str] = None
+    receiver_id: Optional[str] = None
+    method_names: Optional[List[str]] = None
+
+    @classmethod
+    def build(cls, data: dict) -> "AccessKey":
+        if data["permission"] == PublicKeyPermissionType.FULL_ACCESS:
+            return cls(
+                nonce=data["nonce"], permission_type=PublicKeyPermissionType.FULL_ACCESS
+            )
+
+        permission_type, permission_data = list(data["permission"].items())[0]
+        return cls(
+            nonce=data["nonce"],
+            permission_type=PublicKeyPermissionType.FUNCTION_CALL,
+            **permission_data,
+        )
+
+
+@dataclass
+class PublicKey:
+    public_key: str
+    access_key: AccessKey
+
+    @classmethod
+    def build(cls, data: dict) -> "PublicKey":
+        return cls(
+            data["public_key"],
+            AccessKey.build(data["access_key"]),
+        )

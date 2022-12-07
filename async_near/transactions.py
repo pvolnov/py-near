@@ -1,42 +1,45 @@
 import hashlib
+from dataclasses import dataclass
+from typing import Union, List
+
+import base58
 
 from async_near.serializer import BinarySerializer
 
 
+@dataclass
 class Signature:
-    pass
+    keyType: int
+    data: bytes
 
 
-class SignedTransaction:
-    pass
-
-
-class Transaction:
-    pass
-
-
+@dataclass
 class PublicKey:
-    pass
+    keyType: int
+    data: bytes
 
 
-class AccessKey:
-    pass
-
-
-class AccessKeyPermission:
-    pass
-
-
+@dataclass
 class FunctionCallPermission:
-    pass
+    allowance: int
+    receiverId: str
+    methodNames: List[str]
 
 
 class FullAccessPermission:
     pass
 
 
-class Action:
-    pass
+@dataclass
+class AccessKeyPermission:
+    enum: str
+    data: Union[FunctionCallPermission, FullAccessPermission]
+
+
+@dataclass
+class AccessKey:
+    nonce: int
+    permission: AccessKeyPermission
 
 
 class CreateAccount:
@@ -47,28 +50,62 @@ class DeployContract:
     pass
 
 
+@dataclass
 class FunctionCall:
-    pass
+    methodName: str
+    args: bytes
+    gas: int
+    deposit: str
 
 
+@dataclass
 class Transfer:
-    pass
+    deposit: int
 
 
+@dataclass
 class Stake:
-    pass
+    stake: str
+    publicKey: PublicKey
 
 
+@dataclass
 class AddKey:
-    pass
+    accessKey: AccessKey
+    publicKey: PublicKey
 
 
+@dataclass
 class DeleteKey:
-    pass
+    publicKey: PublicKey
 
 
 class DeleteAccount:
     pass
+
+
+@dataclass
+class Action:
+    enum: str
+    data: Union[
+        Transfer, Stake, FunctionCall, AddKey, CreateAccount, DeleteKey, DeployContract
+    ]
+
+
+@dataclass
+class Transaction:
+    signerId: str
+    publicKey: PublicKey
+    nonce: int
+    receiverId: str
+    actions: List[Action]
+    blockHash: str
+
+
+@dataclass
+class SignedTransaction:
+    transaction: Transaction
+    signature: Signature
 
 
 tx_schema = dict(
@@ -122,7 +159,7 @@ tx_schema = dict(
             {
                 "kind": "struct",
                 "fields": [
-                    ["allowance", {"kind": "option", type: "u128"}],
+                    ["allowance", {"kind": "option", "type": "u128"}],
                     ["receiverId", "string"],
                     ["methodNames", ["string"]],
                 ],
@@ -179,77 +216,71 @@ tx_schema = dict(
 
 
 def sign_and_serialize_transaction(receiverId, nonce, actions, blockHash, signer):
-    assert signer.public_key != None
-    assert blockHash != None
-    tx = Transaction()
-    tx.signerId = signer.account_id
-    tx.publicKey = PublicKey()
-    tx.publicKey.keyType = 0
-    tx.publicKey.data = signer.public_key
-    tx.nonce = nonce
-    tx.receiverId = receiverId
-    tx.actions = actions
-    tx.blockHash = blockHash
+    if signer.public_key is None:
+        raise ValueError("Signer must have a public key")
+    if blockHash is None:
+        raise ValueError("Block hash is required")
+    tx = Transaction(
+        signer.account_id,
+        PublicKey(0, signer.public_key),
+        nonce,
+        receiverId,
+        actions,
+        blockHash,
+    )
 
     msg = BinarySerializer(tx_schema).serialize(tx)
     hash_ = hashlib.sha256(msg).digest()
 
-    signature = Signature()
-    signature.keyType = 0
-    signature.data = signer.sign(hash_)
-
-    signedTx = SignedTransaction()
-    signedTx.transaction = tx
-    signedTx.signature = signature
-
+    signature = Signature(0, signer.sign(hash_))
+    signedTx = SignedTransaction(tx, signature)
     return BinarySerializer(tx_schema).serialize(signedTx)
 
 
 def create_create_account_action():
     createAccount = CreateAccount()
-    action = Action()
-    action.enum = "createAccount"
-    action.createAccount = createAccount
+    action = Action("createAccount", createAccount)
     return action
 
 
-def create_full_access_key_action(pk):
-    permission = AccessKeyPermission()
-    permission.enum = "fullAccess"
-    permission.fullAccess = FullAccessPermission()
-    accessKey = AccessKey()
-    accessKey.nonce = 0
-    accessKey.permission = permission
-    publicKey = PublicKey()
-    publicKey.keyType = 0
-    publicKey.data = pk
-    addKey = AddKey()
-    addKey.accessKey = accessKey
-    addKey.publicKey = publicKey
-    action = Action()
-    action.enum = "addKey"
-    action.addKey = addKey
+def create_full_access_key_action(pk: Union[bytes, str]):
+    if isinstance(pk, str):
+        pk = base58.b58decode(pk.replace("ed25519:", ""))
+    permission = AccessKeyPermission("fullAccess", FullAccessPermission())
+    accessKey = AccessKey(0, permission)
+    publicKey = PublicKey(0, pk)
+    addKey = AddKey(accessKey, publicKey)
+    action = Action("addKey", addKey)
+    return action
+
+
+def create_function_call_access_key_action(
+    pk, allowance: int, receiverId: str, methodNames: List[str]
+):
+    if isinstance(pk, str):
+        pk = base58.b58decode(pk.replace("ed25519:", ""))
+    permission = AccessKeyPermission(
+        "functionCall", FunctionCallPermission(allowance, receiverId, methodNames)
+    )
+    accessKey = AccessKey(0, permission)
+    publicKey = PublicKey(0, pk)
+    addKey = AddKey(accessKey, publicKey)
+    action = Action("addKey", addKey)
     return action
 
 
 def create_delete_access_key_action(pk):
-    publicKey = PublicKey()
-    publicKey.keyType = 0
-    publicKey.data = pk
-    deleteKey = DeleteKey()
-    deleteKey.publicKey = publicKey
-    action = Action()
-    action.enum = "deleteKey"
-    action.deleteKey = deleteKey
+    if isinstance(pk, str):
+        pk = base58.b58decode(pk.replace("ed25519:", ""))
+    publicKey = PublicKey(0, pk)
+    deleteKey = DeleteKey(publicKey)
+    action = Action("deleteKey", deleteKey)
     return action
 
 
-def create_transfer_action(amount):
-    transfer = Transfer()
-    transfer.deposit = amount
-    action = Action()
-    action.enum = "transfer"
-    action.transfer = transfer
+def create_transfer_action(amount: int):
+    transfer = Transfer(amount)
+    action = Action("transfer", transfer)
     return action
 
 
@@ -257,33 +288,19 @@ create_payment_action = create_transfer_action
 
 
 def create_staking_action(amount, pk):
-    stake = Stake()
-    stake.stake = amount
-    stake.publicKey = PublicKey()
-    stake.publicKey.keyType = 0
-    stake.publicKey.data = pk
-    action = Action()
-    action.enum = "stake"
-    action.stake = stake
+    stake = Stake(amount, PublicKey(0, pk))
+    action = Action("stake", stake)
     return action
 
 
 def create_deploy_contract_action(code):
     deployContract = DeployContract()
     deployContract.code = code
-    action = Action()
-    action.enum = "deployContract"
-    action.deployContract = deployContract
+    action = Action("deployContract", deployContract)
     return action
 
 
-def create_function_call_action(methodName, args, gas, deposit):
-    functionCall = FunctionCall()
-    functionCall.methodName = methodName
-    functionCall.args = args
-    functionCall.gas = gas
-    functionCall.deposit = deposit
-    action = Action()
-    action.enum = "functionCall"
-    action.functionCall = functionCall
+def create_function_call_action(method_name, args, gas, deposit):
+    function_call = FunctionCall(method_name, args, gas, deposit)
+    action = Action("functionCall", function_call)
     return action
