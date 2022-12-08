@@ -8,7 +8,7 @@ import base58
 from pynear import transactions
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
-from pynear.exceptions.execution import (
+from pynear.exceptions.exceptions import (
     AccountAlreadyExistsError,
     AccountDoesNotExistError,
     CreateAccountNotAllowedError,
@@ -23,7 +23,12 @@ from pynear.exceptions.execution import (
     FunctionCallError,
     NewReceiptValidationError,
 )
-from pynear.models import TransactionResult, ViewFunctionResult, PublicKey, AccountAccessKey
+from pynear.models import (
+    TransactionResult,
+    ViewFunctionResult,
+    PublicKey,
+    AccountAccessKey,
+)
 from pynear.providers import JsonProvider
 from pynear.signer import Signer, KeyPair
 
@@ -55,6 +60,7 @@ class Account(object):
     """
     This class implement all blockchain functions for your account
     """
+
     _access_key: dict
     _lock: asyncio.Lock
     _latest_block_hash: str
@@ -106,7 +112,7 @@ class Account(object):
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
             serialzed_tx = transactions.sign_and_serialize_transaction(
                 receiver_id,
-                access_key["nonce"] + 1,
+                access_key.nonce + 1,
                 actions,
                 block_hash,
                 self._signer,
@@ -140,9 +146,11 @@ class Account(object):
         Get access key for current account
         :return: AccountAccessKey
         """
-        return AccountAccessKey(** await self._provider.get_access_key(
-            self._account_id, self._signer.key_pair.encoded_public_key()
-        ))
+        return AccountAccessKey(
+            **await self._provider.get_access_key(
+                self._account_id, self._signer.key_pair.encoded_public_key()
+            )
+        )
 
     async def get_access_key_list(self, account_id: str = None) -> List[PublicKey]:
         """

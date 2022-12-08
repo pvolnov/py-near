@@ -3,6 +3,7 @@ import re
 from typing import List
 
 import aiohttp
+from pynear.exceptions.execution import FunctionCallError
 
 from pynear.dapps.core import DappClient, NEAR
 from pynear.dapps.fts import FtModel
@@ -29,7 +30,7 @@ class Phone(DappClient):
         """
         if account.chain_id != "mainnet":
             raise ValueError("Only mainnet is supported")
-        super().__init__(account, network)
+        super().__init__(account)
         self._api_key = api_key
 
     async def _get_phone_hex(self, phone) -> str:
@@ -140,12 +141,17 @@ class Phone(DappClient):
         :param index: index in transaction list
         :return:
         """
-        return await self._account.function_call(
-            _PHONE_CONTRACT_ID,
-            "cancel_near_transaction",
-            {"phone": await self._get_phone_hex(phone), "index": index},
-            amount=1,
-        )
+        try:
+            return await self._account.function_call(
+                _PHONE_CONTRACT_ID,
+                "cancel_near_transaction",
+                {"phone": await self._get_phone_hex(phone), "index": index},
+                amount=1,
+            )
+        except FunctionCallError as e:
+            if "`None` value" in e.message:
+                raise ValueError(f"Transaction with index {index} not found")
+            raise e
 
     async def cancel_ft_transaction(self, phone: str, index: int):
         """
@@ -154,9 +160,14 @@ class Phone(DappClient):
         :param index: index in transaction list
         :return:
         """
-        return await self._account.function_call(
-            _PHONE_CONTRACT_ID,
-            "cancel_ft_transaction",
-            {"phone": await self._get_phone_hex(phone), "index": index},
-            amount=1,
-        )
+        try:
+            return await self._account.function_call(
+                _PHONE_CONTRACT_ID,
+                "cancel_ft_transaction",
+                {"phone": await self._get_phone_hex(phone), "index": index},
+                amount=1,
+            )
+        except FunctionCallError as e:
+            if "`None` value" in e.message:
+                raise ValueError(f"Transaction with index {index} not found")
+            raise e

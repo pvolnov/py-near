@@ -1,5 +1,5 @@
 from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
-from pynear.exceptions.execution import FunctionCallError
+from pynear.exceptions.exceptions import FunctionCallError
 
 from pynear.dapps.core import DappClient, NEAR
 from pynear.dapps.ft.models import FtTokenMetadata

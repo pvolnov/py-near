@@ -4,7 +4,7 @@ import json
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
 
-from pynear.exceptions.execution import RpcNotAvailableError
+from pynear.exceptions.exceptions import RpcNotAvailableError
 from pynear.exceptions.provider import (
     UnknownBlockError,
     InvalidAccount,
