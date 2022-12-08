@@ -1,12 +1,14 @@
 # py-near
 
 [![Financial Contributors on Open Collective](https://opencollective.com/py-near/all/badge.svg?style=flat-square)](https://opencollective.com/py-near) 
-[![PyPi Package Version](https://img.shields.io/pypi/v/py-near)](https://pypi.org/project/py-near)
-[![Downloads](https://img.shields.io/pypi/dm/py-near.svg?style=flat-square)](https://pypi.python.org/pypi/py-near)
+[![PyPi Package Version](https://img.shields.io/pypi/v/py-near?style=flat-square)](https://pypi.org/project/py-near)
 [![Supported python versions](https://img.shields.io/pypi/pyversions/py-near)](https://pypi.python.org/pypi/py-near)
 [![Documentation Status](https://img.shields.io/readthedocs/py-near?style=flat-square)](https://py-near.readthedocs.io/en/latest)
-[![Github issues](https://img.shields.io/github/issues/py-near/py-near.svg?style=flat-square)](https://github.com/pvolnov/py-near/issues)
-[![MIT License](https://img.shields.io/pypi/l/py-near.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Github issues](https://img.shields.io/github/issues/pvolnov/py-near.svg?style=flat-square)](https://twitter.com/p_volnov)
+[![MIT License](https://img.shields.io/pypi/l/py-near.svg?style=flat-square?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Twitter](https://img.shields.io/twitter/follow/p_volnov?label=Follow)](https://github.com/pvolnov/py-near/issues)
+
+[//]: # ([![downloads]&#40;https://img.shields.io/github/downloads/pvolnov/py-near/total?style=flat-square&#41;]&#40;https://pypi.org/project/py-near&#41;)
 
 
 **py-near** is a pretty simple and fully asynchronous framework for working with NEAR blockchain.
