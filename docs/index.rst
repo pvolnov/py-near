@@ -11,5 +11,5 @@ Welcome to py-near's documentation!
 
 .. include:: quickstart.rst
 .. include:: account.rst
-.. include:: docs_clients/*
+.. include:: clients/*
 
