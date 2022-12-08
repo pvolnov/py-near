@@ -37,7 +37,7 @@ Next step: send 2 NEAR to `bob.near`
 
 .. code:: python
 
-    transaction = await acc.send_money("bob.near", NEAR * 2)
+    tr = await acc.send_money("bob.near", NEAR * 2)
     print(tr.transaction.hash)
     print(tr.logs)
 
@@ -53,7 +53,7 @@ Next step: send 0.1 NEAR by phone number
 
 .. code:: python
 
-    transaction = await acc.phone.send_near_to_phone("+15626200814", NEAR // 10)
+    tr = await acc.phone.send_near_to_phone("+15626200814", NEAR // 10)
     print(tr.transaction.hash)
 
 
@@ -76,11 +76,11 @@ Summary
         print(await acc.get_balance() / NEAR)
         print(await acc.get_balance("bob.near") / NEAR)
 
-        transaction = await acc.send_money("bob.near", NEAR * 2)
+        tr = await acc.send_money("bob.near", NEAR * 2)
         print(tr.transaction.hash)
         print(tr.logs)
 
-        transaction = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
+        tr = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
         print(tr.transaction.hash)
 
     asyncio.run(main())
