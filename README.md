@@ -5,7 +5,7 @@
 [![Downloads](https://img.shields.io/pypi/dm/py-near.svg?style=flat-square)](https://pypi.python.org/pypi/py-near)
 [![Supported python versions](https://img.shields.io/pypi/pyversions/py-near)](https://pypi.python.org/pypi/py-near)
 [![Documentation Status](https://img.shields.io/readthedocs/py-near?style=flat-square)](http://docs.py-near.dev/en/latest/?badge=latest)
-[![Github issues](https://img.shields.io/github/issues/py-near/py-near.svg?style=flat-square)](https://github.com/py-near/py-near/issues)
+[![Github issues](https://img.shields.io/github/issues/py-near/py-near.svg?style=flat-square)](https://github.com/pvolnov/py-near/issues)
 [![MIT License](https://img.shields.io/pypi/l/py-near.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 
