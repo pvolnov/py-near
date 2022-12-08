@@ -56,9 +56,7 @@ class Phone(DappClient):
                     "Contact team@herewallet.app to get it for free"
                 )
             if r.status != 200:
-                raise Exception(
-                    f"Error while getting phone hash: {r.status}\n{await r.text()}"
-                )
+                raise Exception(f"Error while getting phone hash: {r.status}\n{await r.text()}")
             content = json.loads(await r.text())
             return content["hash"]
 
@@ -111,9 +109,7 @@ class Phone(DappClient):
             amount=int(amount * NEAR),
         )
 
-    async def send_ft_to_phone(
-        self, ft: FtModel, phone: str, amount: float, comment: str = ""
-    ):
+    async def send_ft_to_phone(self, ft: FtModel, phone: str, amount: float, comment: str = ""):
         """
         Send fungible token to phone number. Reciver will get sms with link to claim tokens.
         :param ft: Fungible token model

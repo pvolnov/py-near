@@ -87,9 +87,7 @@ class DeleteAccount:
 @dataclass
 class Action:
     enum: str
-    data: Union[
-        Transfer, Stake, FunctionCall, AddKey, CreateAccount, DeleteKey, DeployContract
-    ]
+    data: Union[Transfer, Stake, FunctionCall, AddKey, CreateAccount, DeleteKey, DeployContract]
 
 
 @dataclass

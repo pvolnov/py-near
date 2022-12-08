@@ -27,9 +27,7 @@ class FT(DappClient):
             ).result
         )
 
-    async def transfer(
-        self, ft: FtModel, receiver_id: str, amount: float, memo: str = ""
-    ):
+    async def transfer(self, ft: FtModel, receiver_id: str, amount: float, memo: str = ""):
         try:
             return await self._account.function_call(
                 ft.contract_id,
@@ -42,15 +40,13 @@ class FT(DappClient):
                 amount=1,
             )
         except FunctionCallError as e:
-            if "The account is not registered" in e.error['ExecutionError']:
+            if "The account is not registered" in e.error["ExecutionError"]:
                 raise NotRegisteredError(e)
-            if "The account doesn't have enough balance" in e.error['ExecutionError']:
+            if "The account doesn't have enough balance" in e.error["ExecutionError"]:
                 raise NotEnoughBalance(e)
             raise e
 
-    async def transfer_call(
-        self, ft: FtModel, receiver_id: str, amount: float, memo: str = ""
-    ):
+    async def transfer_call(self, ft: FtModel, receiver_id: str, amount: float, memo: str = ""):
         return await self._account.function_call(
             ft.contract_id,
             "ft_transfer_call",
@@ -71,9 +67,7 @@ class FT(DappClient):
             )
         ).result
 
-    async def storage_deposit(
-        self, ft: FtModel, near_account_id: str, amount: int = NEAR // 100
-    ):
+    async def storage_deposit(self, ft: FtModel, near_account_id: str, amount: int = NEAR // 100):
         return await self._account.function_call(
             ft.contract_id,
             "storage_deposit",

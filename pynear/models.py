@@ -102,9 +102,7 @@ class AccessKey:
     @classmethod
     def build(cls, data: dict) -> "AccessKey":
         if data["permission"] == PublicKeyPermissionType.FULL_ACCESS:
-            return cls(
-                nonce=data["nonce"], permission_type=PublicKeyPermissionType.FULL_ACCESS
-            )
+            return cls(nonce=data["nonce"], permission_type=PublicKeyPermissionType.FULL_ACCESS)
 
         permission_type, permission_data = list(data["permission"].items())[0]
         return cls(

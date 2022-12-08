@@ -67,9 +67,7 @@ class Account(object):
     _latest_block_hash_ts: float = 0
     chain_id: str = "mainnet"
 
-    def __init__(
-        self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"
-    ):
+    def __init__(self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"):
         self._provider = JsonProvider(rpc_addr)
         self._signer = Signer(account_id, KeyPair(private_key))
         self._account_id = account_id
@@ -122,9 +120,9 @@ class Account(object):
 
             result = await self._provider.send_tx_and_wait(serialzed_tx)
             if "Failure" in result["status"]:
-                error_type, args = list(
-                    result["status"]["Failure"]["ActionError"]["kind"].items()
-                )[0]
+                error_type, args = list(result["status"]["Failure"]["ActionError"]["kind"].items())[
+                    0
+                ]
                 raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
 
         return TransactionResult(**result)
@@ -257,9 +255,7 @@ class Account(object):
         ]
         return await self._sign_and_submit_tx(self._account_id, actions, nowait)
 
-    async def add_full_access_public_key(
-        self, public_key: Union[str, bytes], nowait=False
-    ):
+    async def add_full_access_public_key(self, public_key: Union[str, bytes], nowait=False):
         """
         Add public key to account with full access
         :param public_key: public_key to add

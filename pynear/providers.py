@@ -38,7 +38,6 @@ _ERROR_CODE_TO_EXCEPTION = {
 
 
 class JsonProvider(object):
-
     def __init__(self, rpc_addr):
         if isinstance(rpc_addr, tuple):
             self._rpc_addresses = ["http://{}:{}".format(*rpc_addr)]
@@ -164,9 +163,7 @@ class JsonProvider(object):
         return await self.json_rpc("tx", [tx_hash, tx_recipient_id])
 
     async def get_changes_in_block(self, changes_in_block_request):
-        return await self.json_rpc(
-            "EXPERIMENTAL_changes_in_block", changes_in_block_request
-        )
+        return await self.json_rpc("EXPERIMENTAL_changes_in_block", changes_in_block_request)
 
     async def get_validators_ordered(self, block_hash):
         return await self.json_rpc("EXPERIMENTAL_validators_ordered", [block_hash])
