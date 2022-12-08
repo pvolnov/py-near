@@ -53,12 +53,12 @@ Next step: send 0.1 NEAR by phone number
 
 .. code:: python
 
-    tr = await acc.phone.send_near_to_phone("+15626200814", NEAR // 10)
+    tr = await acc.phone.send_near_to_phone("+15626200110", NEAR // 10)
     print(tr.transaction.hash)
 
 
 Summary
-==================
+----------------
 
 .. code:: python
 
