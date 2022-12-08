@@ -16,7 +16,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Petr Volnov",
-    documentation="Petr Volnov",
+    documentation="https://py-near.readthedocs.io/en/latest/",
     license="MIT",
     install_requires=["base58", "ed25519", "aiohttp"],
 )
