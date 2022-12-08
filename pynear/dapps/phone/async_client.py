@@ -4,20 +4,40 @@ from typing import List
 
 import aiohttp
 
-from async_near.dapps.core import DappClient, NEAR
-from async_near.dapps.fts import FtModel
-from async_near.dapps.phone.exceptions import RequestLimitError
-from async_near.dapps.phone.models import NearTrustTransaction, FtTrustTransaction
+from pynear.dapps.core import DappClient, NEAR
+from pynear.dapps.fts import FtModel
+from pynear.dapps.phone.exceptions import RequestLimitError
+from pynear.dapps.phone.models import NearTrustTransaction, FtTrustTransaction
 
 _PHONE_CONTRACT_ID = "phone.herewallet.near"
 
 
 class Phone(DappClient):
+    """
+    Client to phone.herewallet.near contract
+    With this contract you can send NEAR and fungible tokens to
+    phone number. Reciver will get notification with link to claim tokens.
+    """
+
     def __init__(self, account, api_key="default"):
-        super().__init__(account)
+        """
+
+        :param account:
+        :param api_key: there is limit for hash generator requests to provide spam,
+         to make unlimited requests use api key. You can get it for free by contacting team@herewallet.app
+        :param network: "mainnet" or "testnet"
+        """
+        if account.chain_id != "mainnet":
+            raise ValueError("Only mainnet is supported")
+        super().__init__(account, network)
         self._api_key = api_key
 
-    async def _get_phone_hex(self, phone):
+    async def _get_phone_hex(self, phone) -> str:
+        """
+        To calculate hash we need call herewallet api. This is necessary to prevent creation hash <> phone table.
+        :param phone:
+        :return: phone hash
+        """
         if phone[0] != "+":
             raise ValueError("Phone number must start with +")
         phone = re.sub(r"\D", "", phone)
@@ -42,6 +62,11 @@ class Phone(DappClient):
             return content["hash"]
 
     async def get_ft_transfers(self, phone: str) -> List[FtTrustTransaction]:
+        """
+        Get list of fungible token transfers to phone number
+        :param phone: phone number
+        :return: list of FtTrustTransaction
+        """
         res = (
             await self._account.view_function(
                 _PHONE_CONTRACT_ID,
@@ -54,6 +79,11 @@ class Phone(DappClient):
         return [FtTrustTransaction(**i) for i in res]
 
     async def get_near_transfers(self, phone: str) -> List[NearTrustTransaction]:
+        """
+        Get list of NEAR transfers to phone number
+        :param phone: phone number
+        :return: list of NEAR transfers
+        """
         res = (
             await self._account.view_function(
                 _PHONE_CONTRACT_ID,
@@ -67,10 +97,10 @@ class Phone(DappClient):
 
     async def send_near_to_phone(self, phone: str, amount: float, comment: str = ""):
         """
-
+        Send NEAR to phone number. Reciver will get sms with link to claim tokens.
         :param phone: +X format phone number
         :param amount: number of NEAR which will be sent
-        :param comment:
+        :param comment: any comment
         :return:
         """
         return await self._account.function_call(
@@ -84,7 +114,7 @@ class Phone(DappClient):
         self, ft: FtModel, phone: str, amount: float, comment: str = ""
     ):
         """
-
+        Send fungible token to phone number. Reciver will get sms with link to claim tokens.
         :param ft: Fungible token model
         :param phone: +X format phone number
         :param amount: number of FT which will be sent
@@ -104,6 +134,12 @@ class Phone(DappClient):
         )
 
     async def cancel_near_transaction(self, phone: str, index: int):
+        """
+        Cancel NEAR transfer to phone number. Use index from get_near_transfers() method
+        :param phone: phone number
+        :param index: index in transaction list
+        :return:
+        """
         return await self._account.function_call(
             _PHONE_CONTRACT_ID,
             "cancel_near_transaction",
@@ -112,6 +148,12 @@ class Phone(DappClient):
         )
 
     async def cancel_ft_transaction(self, phone: str, index: int):
+        """
+        Cancel fungible token transfer to phone number. Use index from get_ft_transfers() method
+        :param phone: phone number
+        :param index: index in transaction list
+        :return:
+        """
         return await self._account.function_call(
             _PHONE_CONTRACT_ID,
             "cancel_ft_transaction",

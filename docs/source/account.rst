@@ -89,6 +89,7 @@ Documentation
     :return: transaction hash or TransactionResult
 
     .. code:: python
+
         await acc.send_money('bob.near', NEAR * 3)
 
 

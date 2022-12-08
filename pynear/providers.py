@@ -4,8 +4,8 @@ import json
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
 
-from async_near.exceptions.execution import RpcNotAvailableError
-from async_near.exceptions.provider import (
+from pynear.exceptions.execution import RpcNotAvailableError
+from pynear.exceptions.provider import (
     UnknownBlockError,
     InvalidAccount,
     NoContractCodeError,

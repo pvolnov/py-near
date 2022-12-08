@@ -4,7 +4,7 @@ from typing import Union, List
 
 import base58
 
-from async_near.serializer import BinarySerializer
+from pynear.serializer import BinarySerializer
 
 
 @dataclass

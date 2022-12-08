@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Union
 
 
 class ReceiptOutcome:
@@ -125,3 +125,11 @@ class PublicKey:
             data["public_key"],
             AccessKey.build(data["access_key"]),
         )
+
+
+@dataclass
+class AccountAccessKey:
+    block_hash: str
+    block_height: int
+    nonce: int
+    permission: Union[str, dict]

@@ -4,10 +4,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="async_near",
+    name="pynear",
     author_email="petr@herewallet.app",
     url="https://github.com/here-wallet/async_near",
-    packages=find_packages(include=["async_near", "async_near.exceptions"]),
+    packages=find_packages(include=["pynear", "pynear.exceptions"]),
     version="1.0.11",
     description="Near async rpc client",
     long_description=long_description,

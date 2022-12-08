@@ -1,9 +1,9 @@
-from async_near.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
-from async_near.exceptions.execution import FunctionCallError
+from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
+from pynear.exceptions.execution import FunctionCallError
 
-from async_near.dapps.core import DappClient, NEAR
-from async_near.dapps.ft.models import FtTokenMetadata
-from async_near.dapps.fts import FtModel
+from pynear.dapps.core import DappClient, NEAR
+from pynear.dapps.ft.models import FtTokenMetadata
+from pynear.dapps.fts import FtModel
 
 
 class FT(DappClient):
