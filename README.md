@@ -72,7 +72,7 @@ asyncio.run(main())
  - Communities:
    - 🇺🇸 [@py-near](https://t.me/neafiol)
  - PyPI: [py-near](https://pypi.python.org/pypi/py-near)
- - Documentation: [py-near site](https://docs.py-near.dev/en/latest/)
+ - Documentation: [py-near site](https://py-near.readthedocs.io/en/latest)
  - Source: [Github repo](https://github.com/pvolnov/py-near)
  - Issues/Bug tracker: [Github issues tracker](https://github.com/pvolnov/py-near/issues)
 
