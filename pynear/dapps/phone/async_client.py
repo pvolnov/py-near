@@ -104,6 +104,8 @@ class Phone(DappClient):
         :param nowait if True, method will return before transaction is confirmed
         :return: transaction hash ot TransactionResult
         """
+        if amount < 0.1:
+            raise ValueError("Amount must be >= 0.1 NEAR")
         return await self._account.function_call(
             _PHONE_CONTRACT_ID,
             "send_near_to_phone",
