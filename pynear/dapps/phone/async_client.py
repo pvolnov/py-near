@@ -3,12 +3,11 @@ import re
 from typing import List
 
 import aiohttp
-from pynear.exceptions.execution import FunctionCallError
-
 from pynear.dapps.core import DappClient, NEAR
 from pynear.dapps.fts import FtModel
 from pynear.dapps.phone.exceptions import RequestLimitError
 from pynear.dapps.phone.models import NearTrustTransaction, FtTrustTransaction
+from pynear.exceptions.exceptions import FunctionCallError
 
 _PHONE_CONTRACT_ID = "phone.herewallet.near"
 
@@ -94,28 +93,40 @@ class Phone(DappClient):
             return []
         return [NearTrustTransaction(**i) for i in res]
 
-    async def send_near_to_phone(self, phone: str, amount: float, comment: str = ""):
+    async def send_near_to_phone(
+        self, phone: str, amount: float, comment: str = "", nowait: bool = False
+    ):
         """
         Send NEAR to phone number. Reciver will get sms with link to claim tokens.
         :param phone: +X format phone number
         :param amount: number of NEAR which will be sent
         :param comment: any comment
-        :return:
+        :param nowait if True, method will return before transaction is confirmed
+        :return: transaction hash ot TransactionResult
         """
         return await self._account.function_call(
             _PHONE_CONTRACT_ID,
             "send_near_to_phone",
             {"phone": await self._get_phone_hex(phone), "comment": comment},
             amount=int(amount * NEAR),
+            nowait=nowait,
         )
 
-    async def send_ft_to_phone(self, ft: FtModel, phone: str, amount: float, comment: str = ""):
+    async def send_ft_to_phone(
+        self,
+        ft: FtModel,
+        phone: str,
+        amount: float,
+        comment: str = "",
+        nowait: bool = False,
+    ):
         """
         Send fungible token to phone number. Reciver will get sms with link to claim tokens.
         :param ft: Fungible token model
         :param phone: +X format phone number
         :param amount: number of FT which will be sent
         :param comment:
+        :param nowait: if True, method will return before transaction is confirmed
         :return:
         """
         return await self._account.function_call(
@@ -128,6 +139,7 @@ class Phone(DappClient):
                 "amount": str(int(amount * 10**ft.decimal)),
             },
             amount=1,
+            nowait=nowait,
         )
 
     async def cancel_near_transaction(self, phone: str, index: int):
@@ -145,7 +157,7 @@ class Phone(DappClient):
                 amount=1,
             )
         except FunctionCallError as e:
-            if "`None` value" in e.message:
+            if "`None` value" in str(e.error):
                 raise ValueError(f"Transaction with index {index} not found")
             raise e
 
@@ -164,6 +176,6 @@ class Phone(DappClient):
                 amount=1,
             )
         except FunctionCallError as e:
-            if "`None` value" in e.message:
+            if "`None` value" in str(e):
                 raise ValueError(f"Transaction with index {index} not found")
             raise e

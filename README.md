@@ -4,9 +4,9 @@
 [![PyPi Package Version](https://img.shields.io/pypi/v/py-near?style=flat-square)](https://pypi.org/project/py-near)
 [![Supported python versions](https://img.shields.io/pypi/pyversions/py-near)](https://pypi.python.org/pypi/py-near)
 [![Documentation Status](https://img.shields.io/readthedocs/py-near?style=flat-square)](https://py-near.readthedocs.io/en/latest)
-[![Github issues](https://img.shields.io/github/issues/pvolnov/py-near.svg?style=flat-square)](https://twitter.com/p_volnov)
+[![Github issues](https://img.shields.io/github/issues/pvolnov/py-near.svg?style=flat-square)](https://github.com/pvolnov/py-near/issues)
 [![MIT License](https://img.shields.io/pypi/l/py-near.svg?style=flat-square?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Twitter](https://img.shields.io/twitter/follow/p_volnov?label=Follow)](https://github.com/pvolnov/py-near/issues)
+[![Twitter](https://img.shields.io/twitter/follow/p_volnov?label=Follow)](https://twitter.com/p_volnov)
 
 [//]: # ([![downloads]&#40;https://img.shields.io/github/downloads/pvolnov/py-near/total?style=flat-square&#41;]&#40;https://pypi.org/project/py-near&#41;)
 
@@ -70,11 +70,12 @@ asyncio.run(main())
 
 
 ## Official py-near resources:
- - News: [@herewallet](https://t.me/here_wallet)
- - Communities:
-   - 🇺🇸 [@py-near](https://t.me/neafiol)
+ - News: [@herewallet](https://t.me/herewallet)
+ - Social media:
+   - 🇺🇸 [Telegram](https://t.me/neafiol)
+   - 🇺🇸 [Twitter](https://twitter.com/p_volnov)
  - PyPI: [py-near](https://pypi.python.org/pypi/py-near)
- - Documentation: [py-near site](https://py-near.readthedocs.io/en/latest)
+ - Documentation: [py-near.readthedocs.io](https://py-near.readthedocs.io/en/latest)
  - Source: [Github repo](https://github.com/pvolnov/py-near)
  - Issues/Bug tracker: [Github issues tracker](https://github.com/pvolnov/py-near/issues)
 
@@ -83,4 +84,4 @@ asyncio.run(main())
 ### Code Contributors
 
 This project exists thanks to all the people who contribute. [[Code of conduct](CODE_OF_CONDUCT.md)].
-<a href="https://github.com/py-near/py-near/graphs/contributors"><img src="https://opencollective.com/py-near/contributors.svg?width=890&button=false" /></a>
+<a href="https://github.com/pvolnov/py-near/graphs/contributors"><img src="https://opencollective.com/py-near/contributors.svg?width=890&button=false" /></a>

@@ -29,7 +29,7 @@ setup(
         "Source": "https://github.com/pvolnov/py-near",
         "Tracker": "https://github.com/pvolnov/py-near/issues",
     },
-    version="1.0.2",
+    version="1.0.3",
     description="Pretty simple and fully asynchronous framework for working with NEAR blockchain",
     long_description=long_description,
     long_description_content_type="text/markdown",

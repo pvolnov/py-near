@@ -43,21 +43,22 @@ Documentation
         await acc.phone.send_near_to_phone("+1234567890", NEAR * 2, "Happy birthday!")
 
 
-.. function:: send_near_to_phone(phone: str, amount: float, comment: str = "")
+.. function:: send_near_to_phone(phone: str, amount: float, comment: str = "", nowait: bool = False)
 
     Send NEAR to phone number. Reciver will get sms with link to claim tokens.
 
     :param phone: +X format phone number
     :param amount: number of NEAR which will be sent
     :param comment: any comment
-    :return:
+    :param nowait: if nowait is True, return transaction hash, else wait execution
+    :return: transaction hash or TransactionResult
 
     .. code:: python
 
         await acc.phone.send_near_to_phone('+79999999999', NEAR * 2*)
 
 
-.. function:: send_ft_to_phone(ft: FtModel, phone: str, amount: float, comment: str = "")
+.. function:: send_ft_to_phone(ft: FtModel, phone: str, amount: float, comment: str = "", nowait: bool = False)
 
     Send fungible token to phone number. Reciver will get sms with link to claim tokens.
 
@@ -65,7 +66,8 @@ Documentation
     :param phone: +X format phone number
     :param amount: number of FT which will be sent
     :param comment:
-    :return:
+    :param nowait: if nowait is True, return transaction hash, else wait execution
+    :return: transaction hash or TransactionResult
 
     .. code:: python
 
