@@ -1,5 +1,5 @@
 
-Fungible tokens transfer
+Fungible tokens
 ======================
 
 

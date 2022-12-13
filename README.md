@@ -25,9 +25,9 @@
 ### Simple money transfer
 
 ```python
-from account import Account
+from pynear.account import Account
 import asyncio
-from dapps.core import NEAR
+from pynear.dapps.core import NEAR
 
 ACCOUNT_ID = "mydev.near"
 PRIVATE_KEY = "ed25519:..."
@@ -51,9 +51,9 @@ asyncio.run(main())
 ### Transfer money by phone number
 
 ```python
-from account import Account
+from pynear.account import Account
 import asyncio
-from dapps.core import NEAR
+from pynear.dapps.core import NEAR
 
 ACCOUNT_ID = "mydev.near"
 PRIVATE_KEY = "ed25519:..."
