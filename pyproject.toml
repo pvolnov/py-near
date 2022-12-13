@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "py-near"
+version = "0.1.4"
+description="Pretty simple and fully asynchronous framework for working with NEAR blockchain"
+authors = ["pvolnov <petr@herewallet.app>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+ed25519 = "^1.5"
+aiohttp = "^3.7.4"
+pyonear = "^0.1.0"
+
+[tool.poetry.dev-dependencies]
+black = "^21.12b0"
+mypy = "^0.930"
+pytest = "^6.2.5"
+flake8 = "^4.0.1"
+Sphinx = "^4.3.2"
+sphinx-rtd-theme = "^1.0.0"
+base58 = "^2.1.1"
+
+[project]
+name = "py-near"
+version = "0.1.4"
+description = "Pretty simple and fully asynchronous framework for working with NEAR blockchaink"
+authors = [ {name = "pvolnov", email = "petr@herewallet.app"} ]
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+dependencies=["base58", "ed25519", "aiohttp", "pyonear"]
+keywords = ["python", "near", "async"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools.packages.find]
+namespaces = true
+where = ["pynear"]
+
+[tool.setuptools.package-data]
+mypkg = ["*.py"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+homepage = "https://github.com/pvolnov/py-near"
+documentation = "https://py-near.readthedocs.io/en/latest"
+repository = "https://github.com/pvolnov/py-near"
+changelog = "https://github.com/pvolnov/py-near/blob/main/CHANGELOG.md"
+funding = "https://opencollective.com/py-near"
+twitter = "https://twitter.com/p_volnov"

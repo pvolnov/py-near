@@ -4,6 +4,10 @@ import json
 from typing import List, Union
 
 import base58
+import ed25519
+from pyonear.account_id import AccountId
+from pyonear.crypto import InMemorySigner, Secp256K1PublicKey, ED25519SecretKey
+from pyonear.transaction import Action
 
 from pynear import transactions
 from pynear.dapps.ft.async_client import FT
@@ -30,7 +34,6 @@ from pynear.models import (
     AccountAccessKey,
 )
 from pynear.providers import JsonProvider
-from pynear.signer import Signer, KeyPair
 
 DEFAULT_ATTACHED_GAS = 200000000000000
 
@@ -67,9 +70,18 @@ class Account(object):
     _latest_block_hash_ts: float = 0
     chain_id: str = "mainnet"
 
-    def __init__(self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"):
+    def __init__(
+        self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"
+    ):
+        if isinstance(private_key, str):
+            private_key = base58.b58decode(private_key.replace("ed25519:", ""))
         self._provider = JsonProvider(rpc_addr)
-        self._signer = Signer(account_id, KeyPair(private_key))
+
+        self._signer = InMemorySigner(
+            AccountId(account_id),
+            ED25519SecretKey(private_key).public_key(),
+            ED25519SecretKey(private_key),
+        )
         self._account_id = account_id
 
     async def startup(self):
@@ -93,7 +105,7 @@ class Account(object):
         self._latest_block_hash_ts = datetime.datetime.utcnow().timestamp()
 
     async def _sign_and_submit_tx(
-        self, receiver_id, actions, nowait=False
+        self, receiver_id, actions: List[Action], nowait=False
     ) -> Union[TransactionResult, str]:
         """
         Sign transaction and send it to blockchain
@@ -120,9 +132,9 @@ class Account(object):
 
             result = await self._provider.send_tx_and_wait(serialzed_tx)
             if "Failure" in result["status"]:
-                error_type, args = list(result["status"]["Failure"]["ActionError"]["kind"].items())[
-                    0
-                ]
+                error_type, args = list(
+                    result["status"]["Failure"]["ActionError"]["kind"].items()
+                )[0]
                 raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
 
         return TransactionResult(**result)
@@ -146,7 +158,7 @@ class Account(object):
         """
         return AccountAccessKey(
             **await self._provider.get_access_key(
-                self._account_id, self._signer.key_pair.encoded_public_key()
+                self._account_id, str(self._signer.public_key)
             )
         )
 
@@ -255,7 +267,9 @@ class Account(object):
         ]
         return await self._sign_and_submit_tx(self._account_id, actions, nowait)
 
-    async def add_full_access_public_key(self, public_key: Union[str, bytes], nowait=False):
+    async def add_full_access_public_key(
+        self, public_key: Union[str, bytes], nowait=False
+    ):
         """
         Add public key to account with full access
         :param public_key: public_key to add

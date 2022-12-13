@@ -14,7 +14,9 @@ class FT(DappClient):
         :param account_id: account id
         :return: amount // 10**ft.decimal
         """
-        return await self.get_ft_raw_balance(ft.contract_id, account_id) / 10**ft.decimal
+        return (
+            await self.get_ft_raw_balance(ft.contract_id, account_id) / 10**ft.decimal
+        )
 
     async def get_ft_raw_balance(self, contract_id: str, account_id: str) -> int:
         """
@@ -69,7 +71,10 @@ class FT(DappClient):
         :param force_register: use storage_deposit() if account is not registered
         :return: transaction hash ot TransactionResult
         """
-        if force_register and await self.storage_balance_of(ft, receiver_id) < NEAR // 500:
+        if (
+            force_register
+            and await self.storage_balance_of(ft, receiver_id) < NEAR // 500
+        ):
             await self.storage_deposit(ft, receiver_id)
         try:
             return await self._account.function_call(
@@ -112,7 +117,10 @@ class FT(DappClient):
         :param nowait if True, method will return before transaction is confirmed
         :return: transaction hash ot TransactionResult
         """
-        if force_register and await self.storage_balance_of(ft, receiver_id) < NEAR // 500:
+        if (
+            force_register
+            and await self.storage_balance_of(ft, receiver_id) < NEAR // 500
+        ):
             await self.storage_deposit(ft, receiver_id)
         return await self._account.function_call(
             ft.contract_id,
@@ -135,18 +143,20 @@ class FT(DappClient):
         :param account_id: account id
         :return: int balance in yoctoNEAR, 1_000_000_000_000_000_000_000_000 for 1 NEAR
         """
-        return int(
-            (
-                await self._account.view_function(
-                    ft.contract_id,
-                    "storage_balance_of",
-                    {"account_id": account_id},
-                )
-            ).result
-            or 0
-        )
+        res = (
+            await self._account.view_function(
+                ft.contract_id,
+                "storage_balance_of",
+                {"account_id": account_id},
+            )
+        ).result
+        if res:
+            return int(res['total'] or 0)
+        return 0
 
-    async def storage_deposit(self, ft: FtModel, account_id: str, amount: int = NEAR // 50):
+    async def storage_deposit(
+        self, ft: FtModel, account_id: str, amount: int = NEAR // 50
+    ):
         """
         Deposit storage balance for account. The balance must be greater than 0.01 NEAR for some smart contracts
 
