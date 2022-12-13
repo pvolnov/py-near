@@ -25,23 +25,25 @@
 ### Simple money transfer
 
 ```python
-from pynear.account import Account
+from account import Account
 import asyncio
-from pynear.dapps.core import NEAR
+from dapps.core import NEAR
 
 ACCOUNT_ID = "mydev.near"
 PRIVATE_KEY = "ed25519:..."
 
+
 async def main():
-    acc = Account(ACCOUNT_ID, PRIVATE_KEY)
+   acc = Account(ACCOUNT_ID, PRIVATE_KEY)
 
-    await acc.startup()
-    print(await acc.get_balance() / NEAR)
-    print(await acc.get_balance("bob.near") / NEAR)
+   await acc.startup()
+   print(await acc.get_balance() / NEAR)
+   print(await acc.get_balance("bob.near") / NEAR)
 
-    tr = await acc.send_money("bob.near", NEAR * 2)
-    print(tr.transaction.hash)
-    print(tr.logs)
+   tr = await acc.send_money("bob.near", NEAR * 2)
+   print(tr.transaction.hash)
+   print(tr.logs)
+
 
 asyncio.run(main())
 ```
@@ -49,19 +51,21 @@ asyncio.run(main())
 ### Transfer money by phone number
 
 ```python
-from pynear.account import Account
+from account import Account
 import asyncio
-from pynear.dapps.core import NEAR
+from dapps.core import NEAR
 
 ACCOUNT_ID = "mydev.near"
 PRIVATE_KEY = "ed25519:..."
 
-async def main():
-    acc = Account(ACCOUNT_ID, PRIVATE_KEY)
 
-    await acc.startup()
-    tr = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
-    print(tr.transaction.hash)
+async def main():
+   acc = Account(ACCOUNT_ID, PRIVATE_KEY)
+
+   await acc.startup()
+   tr = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
+   print(tr.transaction.hash)
+
 
 asyncio.run(main())
 ```

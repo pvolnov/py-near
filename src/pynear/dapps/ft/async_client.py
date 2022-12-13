@@ -151,7 +151,7 @@ class FT(DappClient):
             )
         ).result
         if res:
-            return int(res['total'] or 0)
+            return int(res["total"] or 0)
         return 0
 
     async def storage_deposit(

@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 
 
 class RpcNotAvailableError(Exception):
@@ -9,12 +10,13 @@ class ActionErrorKind(Exception):
     pass
 
 
+@dataclass
 class AccountAlreadyExistsError(ActionErrorKind):
     """
     Happens when CreateAccount action tries to create an account with account_id which is already exists in the storage
     """
 
-    pass
+    account_id: str
 
 
 class AccountDoesNotExistError(ActionErrorKind):

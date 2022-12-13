@@ -4,12 +4,10 @@ import json
 from typing import List, Union
 
 import base58
-import ed25519
 from pyonear.account_id import AccountId
-from pyonear.crypto import InMemorySigner, Secp256K1PublicKey, ED25519SecretKey
+from pyonear.crypto import InMemorySigner, ED25519SecretKey
 from pyonear.transaction import Action
 
-from pynear import transactions
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
 from pynear.exceptions.exceptions import (
@@ -34,6 +32,7 @@ from pynear.models import (
     AccountAccessKey,
 )
 from pynear.providers import JsonProvider
+from pynear import transactions
 
 DEFAULT_ATTACHED_GAS = 200000000000000
 
