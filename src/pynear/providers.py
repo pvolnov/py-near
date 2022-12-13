@@ -21,7 +21,6 @@ from pynear.exceptions.provider import (
     ERROR_CODE_TO_EXCEPTION,
 )
 
-from src.pynear.constants import TIMEOUT_WAIT_BLOCK
 
 _ERROR_CODE_TO_EXCEPTION = {
     "UNKNOWN_BLOCK": UnknownBlockError,
