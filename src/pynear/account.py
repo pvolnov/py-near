@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import json
 from typing import List, Union
 
@@ -8,6 +7,7 @@ from pyonear.account_id import AccountId
 from pyonear.crypto import InMemorySigner, ED25519SecretKey
 from pyonear.transaction import Action
 
+import pynear.utils as Utils
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
 from pynear.exceptions.exceptions import (
@@ -93,15 +93,15 @@ class Account(object):
 
     async def _update_last_block_hash(self):
         """
-        Update last block hash& If it's older than 100 block before, transaction will fail
+        Update last block hash& If it's older than 50 block before, transaction will fail
         :return: last block hash
         """
-        if self._latest_block_hash_ts + 50 > datetime.datetime.utcnow().timestamp():
+        if self._latest_block_hash_ts + 50 > Utils.timestamp():
             return
         self._latest_block_hash = (await self._provider.get_status())["sync_info"][
             "latest_block_hash"
         ]
-        self._latest_block_hash_ts = datetime.datetime.utcnow().timestamp()
+        self._latest_block_hash_ts = Utils.timestamp()
 
     async def _sign_and_submit_tx(
         self, receiver_id, actions: List[Action], nowait=False
@@ -119,7 +119,7 @@ class Account(object):
             await self._update_last_block_hash()
 
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
-            serialzed_tx = transactions.sign_and_serialize_transaction(
+            serialized_tx = transactions.sign_and_serialize_transaction(
                 receiver_id,
                 access_key.nonce + 1,
                 actions,
@@ -127,9 +127,9 @@ class Account(object):
                 self._signer,
             )
             if nowait:
-                return await self._provider.send_tx(serialzed_tx)
+                return await self._provider.send_tx(serialized_tx)
 
-            result = await self._provider.send_tx_and_wait(serialzed_tx)
+            result = await self._provider.send_tx_and_wait(serialized_tx)
             if "Failure" in result["status"]:
                 error_type, args = list(
                     result["status"]["Failure"]["ActionError"]["kind"].items()
@@ -139,15 +139,15 @@ class Account(object):
         return TransactionResult(**result)
 
     @property
-    def account_id(self):
+    def account_id(self) -> AccountId:
         return self._account_id
 
     @property
-    def signer(self):
+    def signer(self) -> InMemorySigner:
         return self._signer
 
     @property
-    def provider(self):
+    def provider(self) -> JsonProvider:
         return self._provider
 
     async def get_access_key(self) -> AccountAccessKey:
@@ -171,8 +171,9 @@ class Account(object):
             account_id = self._account_id
         resp = await self._provider.get_access_key_list(account_id)
         result = []
-        for key in resp["keys"]:
-            result.append(PublicKey.build(key))
+        if "keys" in resp and isinstance(resp["keys"], list):
+            for key in resp["keys"]:
+                result.append(PublicKey(**key))
         return result
 
     async def fetch_state(self):
@@ -202,7 +203,7 @@ class Account(object):
     ):
         """
         Call function on smart contract
-        :param contract_id: smart contract adress
+        :param contract_id: smart contract address
         :param method_name: call method name
         :param args: json params for method
         :param gas: amount of attachment gas
@@ -225,7 +226,7 @@ class Account(object):
         nowait=False,
     ):
         """
-        Create new account in subdomian of current account. For example, if current account is "test.near",
+        Create new account in subdomain of current account. For example, if current account is "test.near",
         you can create "wwww.test.near"
         :param account_id: new account id
         :param public_key: add public key to new account
@@ -268,7 +269,7 @@ class Account(object):
 
     async def add_full_access_public_key(
         self, public_key: Union[str, bytes], nowait=False
-    ):
+    ) -> TransactionResult:
         """
         Add public key to account with full access
         :param public_key: public_key to add
