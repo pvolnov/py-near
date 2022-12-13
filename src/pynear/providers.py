@@ -86,15 +86,25 @@ class JsonProvider(object):
             raise error
         return content["result"]
 
-    async def send_tx(self, signed_tx):
+    async def send_tx(self, signed_tx: str):
+        """
+        Send a signed transaction to the network and return the hash of the transaction.
+        :param signed_tx: base64 encoded signed transaction
+        :return:
+        """
         return await self.json_rpc(
-            "broadcast_tx_async", [base64.b64encode(signed_tx).decode("utf8")]
+            "broadcast_tx_async", [signed_tx]
         )
 
-    async def send_tx_and_wait(self, signed_tx, timeout=60):
+    async def send_tx_and_wait(self, signed_tx: str, timeout=60):
+        """
+        Send a signed transaction to the network and wait for it to be included in a block.
+        :param signed_tx: base64 encoded signed transaction
+        :return:
+        """
         return await self.json_rpc(
             "broadcast_tx_commit",
-            [base64.b64encode(signed_tx).decode("utf8")],
+            [signed_tx],
             timeout=timeout,
         )
 

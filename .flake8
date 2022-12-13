@@ -1,0 +1,4 @@
+[flake8]
+exclude = .git,__pycache__,docs/source/conf.py,old,build,dist,.venv,.nox
+max-line-length = 100
+per-file-ignores = based58.pyi: E301,E302,F821
