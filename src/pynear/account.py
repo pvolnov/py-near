@@ -8,6 +8,7 @@ from pyonear.crypto import InMemorySigner, ED25519SecretKey
 from pyonear.transaction import Action
 
 import pynear.utils as Utils
+import pynear.constants as Constants
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
 from pynear.exceptions.exceptions import (
@@ -34,7 +35,6 @@ from pynear.models import (
 from pynear.providers import JsonProvider
 from pynear import transactions
 
-DEFAULT_ATTACHED_GAS = 200000000000000
 
 
 _ERROR_TYPE_TO_EXCEPTION = {
@@ -70,7 +70,7 @@ class Account(object):
     chain_id: str = "mainnet"
 
     def __init__(
-        self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"
+        self, account_id, private_key, rpc_addr=Constants.RPC_MAINNET
     ):
         if isinstance(private_key, str):
             private_key = base58.b58decode(private_key.replace("ed25519:", ""))
@@ -180,7 +180,7 @@ class Account(object):
         """Fetch state for given account."""
         return await self._provider.get_account(self._account_id)
 
-    async def send_money(self, account_id: str, amount: int, nowait=False):
+    async def send_money(self, account_id: str, amount: int, nowait=False) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
@@ -197,7 +197,7 @@ class Account(object):
         contract_id: str,
         method_name: str,
         args: dict,
-        gas=DEFAULT_ATTACHED_GAS,
+        gas: int = Constants.DEFAULT_ATTACHED_GAS,
         amount=0,
         nowait=False,
     ):
@@ -246,7 +246,7 @@ class Account(object):
         public_key: Union[str, bytes],
         receiver_id: str,
         method_names: List[str] = None,
-        allowance: int = 25000000000000000000000,
+        allowance: int = Constants.ALLOWANCE,
         nowait=False,
     ):
         """
