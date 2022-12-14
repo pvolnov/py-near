@@ -83,12 +83,11 @@ Documentation
         await acc.get_access_key()
 
 
-.. function:: get_access_key_list(account_id=None)
+.. function:: get_access_key_list(account_id: str = None)
 
-    Send fungible token to phone number. Reciver will get sms with link to claim tokens.
     Get access key list for account_id, if account_id is None, get access key list for current account
 
-    :param account_id: if account_id is None, return balance of current account
+    :param account_id: if account_id is None, return list public key of current account
     :return: list of PublicKey
 
     .. code:: python
@@ -108,7 +107,7 @@ Documentation
         print(state)
 
 
-.. function:: send_money(account_id: str, amount: int, nowait=False)
+.. function:: send_money(account_id: str, amount: int, nowait: bool = False)
 
     Send money to account_id
 
@@ -137,15 +136,16 @@ Documentation
         print(result)
 
 
-.. function:: function_call(contract_id: str, method_name: str, args: dict, gas=DEFAULT_ATTACHED_GAS, amount=0, nowait=False)
+.. function:: function_call(contract_id: str, method_name: str, args: dict, gas: int = DEFAULT_ATTACHED_GAS,
+                            amount : int = 0, nowait : bool = False)
 
     Call function on smart contract
 
-    :param contract_id: smart contract adress
+    :param contract_id: smart contract address
     :param method_name: call method name
     :param args: json params for method
-    :param gas: amount of attachment gas
-    :param amount: amount of attachment NEAR
+    :param gas: amount of attachment gas. Default is DEFAULT_ATTACHED_GAS = 200000000000000
+    :param amount: amount of attachment NEAR, Default is 0
     :param nowait: if nowait is True, return transaction hash, else wait execution
     :return: transaction hash or TransactionResult
 
@@ -156,7 +156,7 @@ Documentation
 
 .. function:: create_account(account_id: str, public_key: Union[str, bytes], initial_balance: int, nowait=False)
 
-    Create new account in subdomian of current account. For example, if current account is "test.near",
+    Create new account in subdomain of current account. For example, if current account is "test.near",
         you can create "wwww.test.near"
 
     :param account_id: new account id
