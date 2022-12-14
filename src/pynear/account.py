@@ -7,8 +7,8 @@ from pyonear.account_id import AccountId
 from pyonear.crypto import InMemorySigner, ED25519SecretKey
 from pyonear.transaction import Action
 
-import pynear.utils as Utils
-import pynear.constants as Constants
+from pynear import utils
+from pynear import constants
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
 from pynear.exceptions.exceptions import (
@@ -70,7 +70,7 @@ class Account(object):
     chain_id: str = "mainnet"
 
     def __init__(
-        self, account_id, private_key, rpc_addr=Constants.RPC_MAINNET
+        self, account_id, private_key, rpc_addr=constants.RPC_MAINNET
     ):
         if isinstance(private_key, str):
             private_key = base58.b58decode(private_key.replace("ed25519:", ""))
@@ -96,12 +96,12 @@ class Account(object):
         Update last block hash& If it's older than 50 block before, transaction will fail
         :return: last block hash
         """
-        if self._latest_block_hash_ts + 50 > Utils.timestamp():
+        if self._latest_block_hash_ts + 50 > utils.timestamp():
             return
         self._latest_block_hash = (await self._provider.get_status())["sync_info"][
             "latest_block_hash"
         ]
-        self._latest_block_hash_ts = Utils.timestamp()
+        self._latest_block_hash_ts = utils.timestamp()
 
     async def _sign_and_submit_tx(
         self, receiver_id, actions: List[Action], nowait=False
@@ -176,11 +176,11 @@ class Account(object):
                 result.append(PublicKey(**key))
         return result
 
-    async def fetch_state(self):
+    async def fetch_state(self) -> dict:
         """Fetch state for given account."""
         return await self._provider.get_account(self._account_id)
 
-    async def send_money(self, account_id: str, amount: int, nowait=False) -> TransactionResult:
+    async def send_money(self, account_id: str, amount: int, nowait: bool = False) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
@@ -197,17 +197,17 @@ class Account(object):
         contract_id: str,
         method_name: str,
         args: dict,
-        gas: int = Constants.DEFAULT_ATTACHED_GAS,
-        amount=0,
-        nowait=False,
+        gas: int = constants.DEFAULT_ATTACHED_GAS,
+        amount: int = 0,
+        nowait: bool = False,
     ):
         """
         Call function on smart contract
         :param contract_id: smart contract address
         :param method_name: call method name
         :param args: json params for method
-        :param gas: amount of attachment gas
-        :param amount: amount of attachment NEAR
+        :param gas: amount of attachment gas. Default is 200000000000000
+        :param amount: amount of attachment NEAR, Default is 0
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
@@ -246,7 +246,7 @@ class Account(object):
         public_key: Union[str, bytes],
         receiver_id: str,
         method_names: List[str] = None,
-        allowance: int = Constants.ALLOWANCE,
+        allowance: int = constants.ALLOWANCE,
         nowait=False,
     ):
         """
