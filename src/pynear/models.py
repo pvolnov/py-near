@@ -49,6 +49,10 @@ class TransactionData:
         self.signature = signature
         self.hash = hash
 
+    @property
+    def url(self):
+        return f"https://explorer.near.org/transactions/{self.hash}"
+
 
 class TransactionResult:
     receipt_outcome: List[ReceiptOutcome]

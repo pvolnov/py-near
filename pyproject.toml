@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "py-near"
-version = "0.1.4"
+version = "1.0.5"
 description="Pretty simple and fully asynchronous framework for working with NEAR blockchain"
 authors = ["pvolnov <petr@herewallet.app>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -21,7 +22,7 @@ base58 = "^2.1.1"
 
 [project]
 name = "py-near"
-version = "0.1.4"
+version = "1.0.5"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchaink"
 authors = [ {name = "pvolnov", email = "petr@herewallet.app"} ]
 requires-python = ">=3.7"
@@ -33,6 +34,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+readme = "README.md"
 
 [tool.setuptools.packages.find]
 namespaces = true

@@ -1,6 +1,6 @@
 venv
-async_near.egg-info
 build
 dist
 .idea
 tests
+py_near.egg-info
