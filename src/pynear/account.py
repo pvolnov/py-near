@@ -74,19 +74,15 @@ class Account(object):
         self,
         account_id: str = None,
         private_key: str = None,
-        seed: str = None,
         rpc_addr="https://rpc.mainnet.near.org",
     ):
         self._provider = JsonProvider(rpc_addr)
-        if private_key is None and seed is None:
+        if private_key is None:
             return
 
         if isinstance(private_key, str):
             private_key = base58.b58decode(private_key.replace("ed25519:", ""))
-        if seed:
-            key = ED25519SecretKey.from_seed(seed)
-        else:
-            key = ED25519SecretKey(private_key)
+        key = ED25519SecretKey(private_key)
         self._signer = InMemorySigner(
             AccountId(account_id),
             key.public_key(),
