@@ -20,12 +20,12 @@ class Staking(DappClient):
         nowait: bool = False,
     ):
         """
-        Transfer fungible token to account
+        Transfer hNEAR to account
 
         :param receiver_id: receiver account id
         :param amount: amount in yoctoNEAR
         :param memo: comment
-            :param nowait if True, method will return before transaction is confirmed
+        :param nowait if True, method will return before transaction is confirmed
         :return: transaction hash ot TransactionResult
         """
 
@@ -97,7 +97,7 @@ class Staking(DappClient):
 
     async def get_user(self, account_id: str = None) -> Optional[StakingData]:
         """
-        Get staking balance of account.
+        Get user staking parameters
 
         :param account_id: account id
         :return: StakingData
@@ -119,8 +119,8 @@ class Staking(DappClient):
         Deposit staking for account
 
         :param amount: in amount of yoctoNEAR
-        :param nowait if True, method will return before transaction is confirmed
-        :return:
+        :param nowait: if True, method will return before transaction is confirmed
+        :return: transaction hash or TransactionResult
         """
         return await self._account.function_call(
             CONTRACT_ID[self._account.chain_id],
@@ -135,8 +135,8 @@ class Staking(DappClient):
         Withdraw from staking
 
         :param amount: in amount of yoctoNEAR
-        :param nowait if True, method will return before transaction is confirmed
-        :return:
+        :param nowait: if True, method will return before transaction is confirmed
+        :return: transaction hash or TransactionResult
         """
         try:
             return await self._account.function_call(
@@ -155,7 +155,7 @@ class Staking(DappClient):
         """
         Receive dividends
 
-        :param nowait if True, method will return before transaction is confirmed
+        :param nowait: if True, method will return before transaction is confirmed
         :return: transaction hash ot TransactionResult
         """
         return await self._account.function_call(
