@@ -1,7 +1,7 @@
 from typing import Optional
 
 from pynear.dapps.core import DappClient
-from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
+from pynear.dapps.staking.exceptions import NotEnoughBalance
 from pynear.dapps.staking.models import StakingData
 from pynear.exceptions.exceptions import FunctionCallError
 
@@ -42,10 +42,6 @@ class Staking(DappClient):
                 nowait=nowait,
             )
         except FunctionCallError as e:
-            if "The account is not registered" in e.error["ExecutionError"]:
-                raise NotRegisteredError(
-                    "The receiver is not registered, user .storage_deposit() method to register it"
-                )
             if "The account doesn't have enough balance" in e.error["ExecutionError"]:
                 raise NotEnoughBalance(e)
             raise e
@@ -142,13 +138,18 @@ class Staking(DappClient):
         :param nowait if True, method will return before transaction is confirmed
         :return:
         """
-        return await self._account.function_call(
-            CONTRACT_ID[self._account.chain_id],
-            "storage_withdraw",
-            {"amount": amount},
-            amount=1,
-            nowait=nowait,
-        )
+        try:
+            return await self._account.function_call(
+                CONTRACT_ID[self._account.chain_id],
+                "storage_withdraw",
+                {"amount": str(int(amount))},
+                amount=1,
+                nowait=nowait,
+            )
+        except FunctionCallError as e:
+            if "The account doesn't have enough balance" in e:
+                raise NotEnoughBalance
+            raise e
 
     async def receive_dividends(self, nowait=False):
         """
@@ -160,6 +161,7 @@ class Staking(DappClient):
         return await self._account.function_call(
             CONTRACT_ID[self._account.chain_id],
             "receive_dividends",
+            {},
             amount=1,
             nowait=nowait,
         )
