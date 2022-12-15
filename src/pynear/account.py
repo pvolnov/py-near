@@ -10,6 +10,7 @@ from pyonear.transaction import Action
 
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
+from pynear.dapps.staking.async_client import Staking
 from pynear.exceptions.exceptions import (
     AccountAlreadyExistsError,
     AccountDoesNotExistError,
@@ -64,24 +65,33 @@ class Account(object):
     """
 
     _access_key: dict
-    _lock: asyncio.Lock
+    _lock: asyncio.Lock = None
     _latest_block_hash: str
     _latest_block_hash_ts: float = 0
     chain_id: str = "mainnet"
 
     def __init__(
-        self, account_id, private_key, rpc_addr="https://rpc.mainnet.near.org"
+        self,
+        account_id: str = None,
+        private_key: str = None,
+        seed: str = None,
+        rpc_addr="https://rpc.mainnet.near.org",
     ):
+        self._provider = JsonProvider(rpc_addr)
+        if private_key is None and seed is None:
+            return
+
         if isinstance(private_key, str):
             private_key = base58.b58decode(private_key.replace("ed25519:", ""))
-        self._provider = JsonProvider(rpc_addr)
-
+        if seed:
+            key = ED25519SecretKey.from_seed(seed)
+        else:
+            key = ED25519SecretKey(private_key)
         self._signer = InMemorySigner(
             AccountId(account_id),
-            ED25519SecretKey(private_key).public_key(),
-            ED25519SecretKey(private_key),
+            key.public_key(),
+            key,
         )
-        self._account_id = account_id
 
     async def startup(self):
         """
@@ -114,6 +124,10 @@ class Account(object):
         confirm and return TransactionResult
         :return: transaction hash or TransactionResult
         """
+        if self._signer is None:
+            raise ValueError("You must provide a private key or seed to call methods")
+        if self._lock is None:
+            await self.startup()
         async with self._lock:
             access_key = await self.get_access_key()
             await self._update_last_block_hash()
@@ -140,7 +154,7 @@ class Account(object):
 
     @property
     def account_id(self):
-        return self._account_id
+        return str(self._signer.account_id)
 
     @property
     def signer(self):
@@ -155,11 +169,16 @@ class Account(object):
         Get access key for current account
         :return: AccountAccessKey
         """
-        return AccountAccessKey(
-            **await self._provider.get_access_key(
-                self._account_id, str(self._signer.public_key)
+        if self._signer is None:
+            raise ValueError(
+                "Signer is not initialized, use Account(account_id, private_key)"
             )
+        resp = await self._provider.get_access_key(
+            self.account_id, str(self._signer.public_key)
         )
+        if "error" in resp:
+            raise ValueError(resp["error"])
+        return AccountAccessKey(**resp)
 
     async def get_access_key_list(self, account_id: str = None) -> List[PublicKey]:
         """
@@ -168,7 +187,7 @@ class Account(object):
         :return: list of PublicKey
         """
         if account_id is None:
-            account_id = self._account_id
+            account_id = self.account_id
         resp = await self._provider.get_access_key_list(account_id)
         result = []
         for key in resp["keys"]:
@@ -177,7 +196,7 @@ class Account(object):
 
     async def fetch_state(self):
         """Fetch state for given account."""
-        return await self._provider.get_account(self._account_id)
+        return await self._provider.get_account(self.account_id)
 
     async def send_money(self, account_id: str, amount: int, nowait=False):
         """
@@ -264,7 +283,7 @@ class Account(object):
                 public_key, allowance, receiver_id, method_names
             ),
         ]
-        return await self._sign_and_submit_tx(self._account_id, actions, nowait)
+        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def add_full_access_public_key(
         self, public_key: Union[str, bytes], nowait=False
@@ -278,7 +297,7 @@ class Account(object):
         actions = [
             transactions.create_full_access_key_action(public_key),
         ]
-        return await self._sign_and_submit_tx(self._account_id, actions, nowait)
+        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def delete_public_key(self, public_key: Union[str, bytes], nowait=False):
         """
@@ -290,7 +309,7 @@ class Account(object):
         actions = [
             transactions.create_delete_access_key_action(public_key),
         ]
-        return await self._sign_and_submit_tx(self._account_id, actions, nowait)
+        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
@@ -300,7 +319,7 @@ class Account(object):
         :return: transaction hash or TransactionResult
         """
         return await self._sign_and_submit_tx(
-            self._account_id,
+            self.account_id,
             [transactions.create_deploy_contract_action(contract_code)],
             nowait,
         )
@@ -314,7 +333,7 @@ class Account(object):
         :return: transaction hash or TransactionResult
         """
         return await self._sign_and_submit_tx(
-            self._account_id,
+            self.account_id,
             [transactions.create_staking_action(public_key, amount)],
             nowait,
         )
@@ -344,7 +363,7 @@ class Account(object):
         :return: balance of account in yoctoNEAR
         """
         if account_id is None:
-            account_id = self._account_id
+            account_id = self.account_id
         return int((await self._provider.get_account(account_id))["amount"])
 
     @property
@@ -362,3 +381,11 @@ class Account(object):
         :return: FT(self)
         """
         return FT(self)
+
+    @property
+    def staking(self):
+        """
+        Get client for staking
+        :return: Staking(self)
+        """
+        return Staking(self)

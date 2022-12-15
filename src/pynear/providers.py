@@ -110,7 +110,7 @@ class JsonProvider(object):
 
     async def get_status(self):
         async with aiohttp.ClientSession() as session:
-            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=5)
+            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=60)
             r.raise_for_status()
             return json.loads(await r.text())
 
