@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import json
 from typing import List, Union
 
@@ -8,6 +7,8 @@ from pyonear.account_id import AccountId
 from pyonear.crypto import InMemorySigner, ED25519SecretKey
 from pyonear.transaction import Action
 
+from pynear import utils
+from pynear import constants
 from pynear.dapps.ft.async_client import FT
 from pynear.dapps.phone.async_client import Phone
 from pynear.dapps.staking.async_client import Staking
@@ -35,7 +36,6 @@ from pynear.models import (
 from pynear.providers import JsonProvider
 from pynear import transactions
 
-DEFAULT_ATTACHED_GAS = 200000000000000
 
 
 _ERROR_TYPE_TO_EXCEPTION = {
@@ -99,15 +99,15 @@ class Account(object):
 
     async def _update_last_block_hash(self):
         """
-        Update last block hash& If it's older than 100 block before, transaction will fail
+        Update last block hash& If it's older than 50 block before, transaction will fail
         :return: last block hash
         """
-        if self._latest_block_hash_ts + 50 > datetime.datetime.utcnow().timestamp():
+        if self._latest_block_hash_ts + 50 > utils.timestamp():
             return
         self._latest_block_hash = (await self._provider.get_status())["sync_info"][
             "latest_block_hash"
         ]
-        self._latest_block_hash_ts = datetime.datetime.utcnow().timestamp()
+        self._latest_block_hash_ts = utils.timestamp()
 
     async def _sign_and_submit_tx(
         self, receiver_id, actions: List[Action], nowait=False
@@ -129,7 +129,7 @@ class Account(object):
             await self._update_last_block_hash()
 
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
-            serialzed_tx = transactions.sign_and_serialize_transaction(
+            serialized_tx = transactions.sign_and_serialize_transaction(
                 receiver_id,
                 access_key.nonce + 1,
                 actions,
@@ -137,9 +137,9 @@ class Account(object):
                 self._signer,
             )
             if nowait:
-                return await self._provider.send_tx(serialzed_tx)
+                return await self._provider.send_tx(serialized_tx)
 
-            result = await self._provider.send_tx_and_wait(serialzed_tx)
+            result = await self._provider.send_tx_and_wait(serialized_tx)
             if "Failure" in result["status"]:
                 error_type, args = list(
                     result["status"]["Failure"]["ActionError"]["kind"].items()
@@ -149,15 +149,15 @@ class Account(object):
         return TransactionResult(**result)
 
     @property
-    def account_id(self):
+    def account_id(self) -> str:
         return str(self._signer.account_id)
 
     @property
-    def signer(self):
+    def signer(self) -> InMemorySigner:
         return self._signer
 
     @property
-    def provider(self):
+    def provider(self) -> JsonProvider:
         return self._provider
 
     async def get_access_key(self) -> AccountAccessKey:
@@ -186,15 +186,16 @@ class Account(object):
             account_id = self.account_id
         resp = await self._provider.get_access_key_list(account_id)
         result = []
-        for key in resp["keys"]:
-            result.append(PublicKey.build(key))
+        if "keys" in resp and isinstance(resp["keys"], list):
+            for key in resp["keys"]:
+                result.append(PublicKey(**key))
         return result
 
-    async def fetch_state(self):
+    async def fetch_state(self) -> dict:
         """Fetch state for given account."""
         return await self._provider.get_account(self.account_id)
 
-    async def send_money(self, account_id: str, amount: int, nowait=False):
+    async def send_money(self, account_id: str, amount: int, nowait: bool = False) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
@@ -211,17 +212,17 @@ class Account(object):
         contract_id: str,
         method_name: str,
         args: dict,
-        gas=DEFAULT_ATTACHED_GAS,
-        amount=0,
-        nowait=False,
+        gas: int = constants.DEFAULT_ATTACHED_GAS,
+        amount: int = 0,
+        nowait: bool = False,
     ):
         """
         Call function on smart contract
-        :param contract_id: smart contract adress
+        :param contract_id: smart contract address
         :param method_name: call method name
         :param args: json params for method
-        :param gas: amount of attachment gas
-        :param amount: amount of attachment NEAR
+        :param gas: amount of attachment gas. Default is 200000000000000
+        :param amount: amount of attachment NEAR, Default is 0
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
@@ -240,7 +241,7 @@ class Account(object):
         nowait=False,
     ):
         """
-        Create new account in subdomian of current account. For example, if current account is "test.near",
+        Create new account in subdomain of current account. For example, if current account is "test.near",
         you can create "wwww.test.near"
         :param account_id: new account id
         :param public_key: add public key to new account
@@ -260,7 +261,7 @@ class Account(object):
         public_key: Union[str, bytes],
         receiver_id: str,
         method_names: List[str] = None,
-        allowance: int = 25000000000000000000000,
+        allowance: int = constants.ALLOWANCE,
         nowait=False,
     ):
         """
@@ -283,7 +284,7 @@ class Account(object):
 
     async def add_full_access_public_key(
         self, public_key: Union[str, bytes], nowait=False
-    ):
+    ) -> TransactionResult:
         """
         Add public key to account with full access
         :param public_key: public_key to add

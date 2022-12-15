@@ -3,7 +3,7 @@ import json
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
-
+from pynear import constants
 from pynear.exceptions.exceptions import RpcNotAvailableError
 from pynear.exceptions.provider import (
     UnknownBlockError,
@@ -20,6 +20,7 @@ from pynear.exceptions.provider import (
     UnknownAccessKeyError,
     ERROR_CODE_TO_EXCEPTION,
 )
+
 
 _ERROR_CODE_TO_EXCEPTION = {
     "UNKNOWN_BLOCK": UnknownBlockError,
@@ -96,10 +97,11 @@ class JsonProvider(object):
             "broadcast_tx_async", [signed_tx]
         )
 
-    async def send_tx_and_wait(self, signed_tx: str, timeout=60):
+    async def send_tx_and_wait(self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC):
         """
         Send a signed transaction to the network and wait for it to be included in a block.
         :param signed_tx: base64 encoded signed transaction
+        :param timeout: timeout in seconds wait for RPC response
         :return:
         """
         return await self.json_rpc(

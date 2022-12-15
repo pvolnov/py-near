@@ -97,7 +97,7 @@ class Phone(DappClient):
         self, phone: str, amount: float, comment: str = "", nowait: bool = False
     ):
         """
-        Send NEAR to phone number. Reciver will get sms with link to claim tokens.
+        Send NEAR to phone number. Receiver will get sms with link to claim tokens.
         :param phone: +X format phone number
         :param amount: number of NEAR which will be sent
         :param comment: any comment
