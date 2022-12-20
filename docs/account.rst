@@ -10,7 +10,7 @@ Quick start
     import asyncio
     from pynear.dapps.core import NEAR
 
-    ACCOUNT_ID = "mydev.near"
+    ACCOUNT_ID = "bob.near"
     PRIVATE_KEY = "ed25519:..."
 
     async def main():
@@ -35,12 +35,40 @@ Documentation
 
 .. class:: Account
 
-      This class implement all blockchain functions for your account
+      This class implement all blockchain functions for your account.
+      Only one parallel request can be made from one private key.
+      All transaction calls execute sequentially.
 
-    .. code:: python
+      .. code:: python
 
-        acc = Account(...)
-        await acc.startup()
+        # requests time ~18s
+        tasks = [
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+        ]
+        for t in task:
+            await t
+
+
+      `Account()` support multikeys. In this case you can make a few parallel requests.
+
+      .. code:: python
+
+        acc = Account("bob.near", [private_key1, private_key2, private_key3])
+
+        # requests time ~6s
+        tasks = [
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("santahere.near", 1)),
+        ]
+        for t in task:
+            await t
+
+
+
+
 
 .. function:: get_access_key()
 
@@ -137,7 +165,7 @@ Documentation
 
     .. code:: python
 
-        await acc.create_account('test.mydev.near', "5X9WvUbRV3aSd9Py1LK7HAndqoktZtcgYdRjMt86SxMj", NEAR * 3)
+        await acc.create_account('test.bob.near', "5X9WvUbRV3aSd9Py1LK7HAndqoktZtcgYdRjMt86SxMj", NEAR * 3)
 
 
 .. function:: add_public_key(public_key: Union[str, bytes], receiver_id: str, method_names: List[str] = None, allowance: int = 25000000000000000000000, nowait=False)

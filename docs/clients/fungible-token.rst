@@ -12,7 +12,7 @@ Quick start
     from pynear.dapps.fts import FTS
     import asyncio
 
-    ACCOUNT_ID = "mydev.near"
+    ACCOUNT_ID = "bob.near"
     PRIVATE_KEY = "ed25519:..."
 
 

@@ -29,7 +29,7 @@ from pynear.account import Account
 import asyncio
 from pynear.dapps.core import NEAR
 
-ACCOUNT_ID = "mydev.near"
+ACCOUNT_ID = "bob.near"
 PRIVATE_KEY = "ed25519:..."
 
 
@@ -55,7 +55,7 @@ from pynear.account import Account
 import asyncio
 from pynear.dapps.core import NEAR
 
-ACCOUNT_ID = "mydev.near"
+ACCOUNT_ID = "bob.near"
 PRIVATE_KEY = "ed25519:..."
 
 
