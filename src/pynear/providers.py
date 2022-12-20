@@ -47,7 +47,7 @@ class JsonProvider(object):
         else:
             self._rpc_addresses = [rpc_addr]
 
-    async def json_rpc(self, method, params, timeout=60):
+    async def call_rpc_request(self, method, params, timeout=60):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
@@ -68,7 +68,10 @@ class JsonProvider(object):
                 continue
             except ConnectionError:
                 continue
+        return content
 
+    async def json_rpc(self, method, params, timeout=60):
+        content = await self.call_rpc_request(method, params, timeout)
         if not content:
             raise RpcNotAvailableError("RPC not available")
 
@@ -93,11 +96,11 @@ class JsonProvider(object):
         :param signed_tx: base64 encoded signed transaction
         :return:
         """
-        return await self.json_rpc(
-            "broadcast_tx_async", [signed_tx]
-        )
+        return await self.json_rpc("broadcast_tx_async", [signed_tx])
 
-    async def send_tx_and_wait(self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC):
+    async def send_tx_and_wait(
+        self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC
+    ):
         """
         Send a signed transaction to the network and wait for it to be included in a block.
         :param signed_tx: base64 encoded signed transaction
@@ -175,7 +178,9 @@ class JsonProvider(object):
         return await self.json_rpc("tx", [tx_hash, tx_recipient_id])
 
     async def get_changes_in_block(self, changes_in_block_request):
-        return await self.json_rpc("EXPERIMENTAL_changes_in_block", changes_in_block_request)
+        return await self.json_rpc(
+            "EXPERIMENTAL_changes_in_block", changes_in_block_request
+        )
 
     async def get_validators_ordered(self, block_hash):
         return await self.json_rpc("EXPERIMENTAL_validators_ordered", [block_hash])
