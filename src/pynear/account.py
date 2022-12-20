@@ -165,7 +165,6 @@ class Account(object):
         except Exception as e:
             raise e
         finally:
-            print("Unlock sender")
             await self._free_signers.put(signer)
 
     @property
