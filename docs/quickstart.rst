@@ -113,9 +113,9 @@ Now we can call transactions in parallel
     acc = Account("bob.near", [private_key1, private_key2, private_key3])
     # request time = count transactions / count public keys
     tasks = [
-        asyncio.create_task(acc.send_money("santahere.near", 1)),
-        asyncio.create_task(acc.send_money("santahere.near", 1)),
-        asyncio.create_task(acc.send_money("santahere.near", 1)),
+        asyncio.create_task(acc.send_money("alisa.near", 1)),
+        asyncio.create_task(acc.send_money("alisa.near", 1)),
+        asyncio.create_task(acc.send_money("alisa.near", 1)),
     ]
     for t in task:
         await t

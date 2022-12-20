@@ -43,9 +43,9 @@ Documentation
 
         # requests time ~18s
         tasks = [
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
         ]
         for t in task:
             await t
@@ -59,9 +59,9 @@ Documentation
 
         # requests time ~6s
         tasks = [
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
-            asyncio.create_task(acc.send_money("santahere.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
+            asyncio.create_task(acc.send_money("alisa.near", 1)),
         ]
         for t in task:
             await t
