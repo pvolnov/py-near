@@ -70,6 +70,37 @@ async def main():
 asyncio.run(main())
 ```
 
+### Parallel requests
+
+Only one parallel request can be made from one private key.
+All transaction calls execute sequentially.
+To make several parallel calls you need to use several private keys
+
+
+
+```python3
+acc = Account("bob.near", private_key1)
+
+for i in range(2):
+  signer = InMemorySigner.from_random(AccountId("bob.near"), KeyType.ED25519)
+  await acc.add_full_access_public_key(str(signer.public_key))
+  print(signer.secret_key)
+```
+
+Now we can call transactions in parallel
+
+```python3
+acc = Account("bob.near", [private_key1, private_key2, private_key3])
+# request time = count transactions / count public keys
+tasks = [
+  asyncio.create_task(acc.send_money("alisa.near", 1)),
+  asyncio.create_task(acc.send_money("alisa.near", 1)),
+  asyncio.create_task(acc.send_money("alisa.near", 1)),
+]
+for t in task:
+  await t
+```
+
 </details>
 
 
