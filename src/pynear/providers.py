@@ -22,7 +22,7 @@ from pynear.exceptions.provider import (
 )
 
 
-_ERROR_CODE_TO_EXCEPTION = {
+PROVIDER_CODE_TO_EXCEPTION = {
     "UNKNOWN_BLOCK": UnknownBlockError,
     "INVALID_ACCOUNT": InvalidAccount,
     "UNKNOWN_ACCOUNT": UnknownAccount,
@@ -47,7 +47,7 @@ class JsonProvider(object):
         else:
             self._rpc_addresses = [rpc_addr]
 
-    async def json_rpc(self, method, params, timeout=60):
+    async def call_rpc_request(self, method, params, timeout=60):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
@@ -68,40 +68,54 @@ class JsonProvider(object):
                 continue
             except ConnectionError:
                 continue
+        return content
 
-        if not content:
-            raise RpcNotAvailableError("RPC not available")
-
+    @staticmethod
+    def get_error_from_response(content: dict):
         if "error" in content:
             error_code = content["error"].get("cause", {}).get("name", "")
             body = content["error"]["data"]
-            error = _ERROR_CODE_TO_EXCEPTION.get(error_code, InternalError)(body)
+            error = PROVIDER_CODE_TO_EXCEPTION.get(error_code, InternalError)(
+                body, error_json=content["error"]
+            )
             while True:
                 if not isinstance(body, dict):
                     break
                 key, body = list(body.items())[0]
                 if key in ERROR_CODE_TO_EXCEPTION:
-                    error = ERROR_CODE_TO_EXCEPTION[key](body)
+                    error = ERROR_CODE_TO_EXCEPTION[key](
+                        body, error_json=content["error"]
+                    )
                 else:
                     break
+            return error
+
+    async def json_rpc(self, method, params, timeout=60):
+        content = await self.call_rpc_request(method, params, timeout)
+        if not content:
+            raise RpcNotAvailableError("RPC not available")
+
+        error = self.get_error_from_response(content)
+        if error:
             raise error
         return content["result"]
 
-    async def send_tx(self, signed_tx: str):
+    async def send_tx(self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC):
         """
-        Send a signed transaction to the network and return the hash of the transaction.
-        :param signed_tx: base64 encoded signed transaction
+        Send a signed transaction to the network and return the hash of the transaction
+        :param signed_tx: base64 encoded signed transaction, str.
+        :param timeout: rpc request timeout
         :return:
         """
-        return await self.json_rpc(
-            "broadcast_tx_async", [signed_tx]
-        )
+        return await self.json_rpc("broadcast_tx_async", [signed_tx], timeout=timeout)
 
-    async def send_tx_and_wait(self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC):
+    async def send_tx_and_wait(
+        self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC
+    ):
         """
-        Send a signed transaction to the network and wait for it to be included in a block.
-        :param signed_tx: base64 encoded signed transaction
-        :param timeout: timeout in seconds wait for RPC response
+        Send a signed transaction to the network and wait for it to be included in a block
+        :param signed_tx: base64 encoded signed transaction, str
+        :param timeout: rpc request timeout
         :return:
         """
         return await self.json_rpc(
@@ -175,7 +189,9 @@ class JsonProvider(object):
         return await self.json_rpc("tx", [tx_hash, tx_recipient_id])
 
     async def get_changes_in_block(self, changes_in_block_request):
-        return await self.json_rpc("EXPERIMENTAL_changes_in_block", changes_in_block_request)
+        return await self.json_rpc(
+            "EXPERIMENTAL_changes_in_block", changes_in_block_request
+        )
 
     async def get_validators_ordered(self, block_hash):
         return await self.json_rpc("EXPERIMENTAL_validators_ordered", [block_hash])

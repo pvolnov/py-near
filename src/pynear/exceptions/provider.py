@@ -3,7 +3,10 @@ from typing import Optional
 
 
 class JsonProviderError(Exception):
-    pass
+    error_json: dict
+
+    def __init__(self, *args, error_json=None, **kargs):
+        self.error_json = error_json
 
 
 class TransactionError(JsonProviderError):
@@ -115,7 +118,8 @@ class InvalidTransactionError(TransactionError):
 
 
 class TxExecutionError(InvalidTransactionError):
-    def __init__(self, data):
+    def __init__(self, data, error_json=None):
+        super().__init__(error_json=error_json)
         if isinstance(data, str):
             data = json.loads(data)
         for key, value in data.items():
@@ -212,7 +216,8 @@ class ActionError(TxExecutionError):
     index: Optional[int]
     kind: ActionErrorKind
 
-    def __init__(self, data):
+    def __init__(self, data, error_json=None):
+        self.error_json = error_json
         if isinstance(data, str):
             data = json.loads(data)
         self.index = data.get("index", None)
@@ -245,6 +250,11 @@ class NotEnoughBalance(InvalidTxError):
     signer_id: str
     balance: str
     cost: str
+
+
+class LackBalanceForState(InvalidTxError):
+    amount: str
+    signer_id: str
 
 
 class CostOverflow(InvalidTxError):
@@ -317,6 +327,7 @@ ERROR_CODE_TO_EXCEPTION = {
     "NoSyncedBlocksError": NoSyncedBlocksError,
     "NoSyncedYetError": NoSyncedYetError,
     "NotEnoughBalance": NotEnoughBalance,
+    "LackBalanceForState": LackBalanceForState,
     "RentUnpaid": RentUnpaid,
     "RpcTimeoutError": RpcTimeoutError,
     "SignerDoesNotExist": SignerDoesNotExist,

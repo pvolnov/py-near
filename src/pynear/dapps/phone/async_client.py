@@ -3,6 +3,8 @@ import re
 from typing import List
 
 import aiohttp
+
+from pynear.constants import TGAS
 from pynear.dapps.core import DappClient, NEAR
 from pynear.dapps.fts import FtModel
 from pynear.dapps.phone.exceptions import RequestLimitError
@@ -55,7 +57,9 @@ class Phone(DappClient):
                     "Contact team@herewallet.app to get it for free"
                 )
             if r.status != 200:
-                raise Exception(f"Error while getting phone hash: {r.status}\n{await r.text()}")
+                raise Exception(
+                    f"Error while getting phone hash: {r.status}\n{await r.text()}"
+                )
             content = json.loads(await r.text())
             return content["hash"]
 
@@ -112,6 +116,7 @@ class Phone(DappClient):
             {"phone": await self._get_phone_hex(phone), "comment": comment},
             amount=int(amount * NEAR),
             nowait=nowait,
+            gas=25 * TGAS,
         )
 
     async def send_ft_to_phone(
@@ -141,6 +146,7 @@ class Phone(DappClient):
                 "amount": str(int(amount * 10**ft.decimal)),
             },
             amount=1,
+            gas=50 * TGAS,
             nowait=nowait,
         )
 

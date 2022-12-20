@@ -1,10 +1,11 @@
 import asyncio
+import collections
 import json
-from typing import List, Union
+from typing import List, Union, Tuple, Dict, Optional
 
 import base58
 from pyonear.account_id import AccountId
-from pyonear.crypto import InMemorySigner, ED25519SecretKey
+from pyonear.crypto import InMemorySigner, ED25519SecretKey, Signer
 from pyonear.transaction import Action
 
 from pynear import utils
@@ -37,7 +38,6 @@ from pynear.providers import JsonProvider
 from pynear import transactions
 
 
-
 _ERROR_TYPE_TO_EXCEPTION = {
     "AccountAlreadyExists": AccountAlreadyExistsError,
     "AccountDoesNotExist": AccountDoesNotExistError,
@@ -66,6 +66,7 @@ class Account(object):
 
     _access_key: dict
     _lock: asyncio.Lock = None
+    _lock_by_pk: Dict[str, asyncio.Lock] = {}
     _latest_block_hash: str
     _latest_block_hash_ts: float = 0
     chain_id: str = "mainnet"
@@ -73,21 +74,35 @@ class Account(object):
     def __init__(
         self,
         account_id: str = None,
-        private_key: str = None,
+        private_key: Union[List[Union[str, bytes]], str, bytes] = None,
         rpc_addr="https://rpc.mainnet.near.org",
     ):
         self._provider = JsonProvider(rpc_addr)
+        self.account_id = account_id
         if private_key is None:
+            private_keys = []
+        elif isinstance(private_key, list):
+            private_keys = private_key
+        elif isinstance(private_key, str):
+            private_keys = [private_key]
+        elif isinstance(private_key, bytes):
+            private_keys = [private_key]
+        else:
             return
 
-        if isinstance(private_key, str):
-            private_key = base58.b58decode(private_key.replace("ed25519:", ""))
-        key = ED25519SecretKey(private_key)
-        self._signer = InMemorySigner(
-            AccountId(account_id),
-            key.public_key(),
-            key,
-        )
+        self._free_signers = asyncio.Queue()
+        self._signers = []
+        for pk in private_keys:
+            if isinstance(pk, str):
+                pk = base58.b58decode(pk.replace("ed25519:", ""))
+            key = ED25519SecretKey(pk)
+            singer = InMemorySigner(
+                AccountId(account_id),
+                key.public_key(),
+                key,
+            )
+            self._free_signers.put_nowait(singer)
+            self._signers.append(singer)
 
     async def startup(self):
         """
@@ -95,6 +110,7 @@ class Account(object):
         :return:
         """
         self._lock = asyncio.Lock()
+        self._lock_by_pk = collections.defaultdict(asyncio.Lock)
         self.chain_id = (await self._provider.get_status())["chain_id"]
 
     async def _update_last_block_hash(self):
@@ -120,12 +136,12 @@ class Account(object):
         confirm and return TransactionResult
         :return: transaction hash or TransactionResult
         """
-        if self._signer is None:
+        if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
-        if self._lock is None:
-            await self.startup()
-        async with self._lock:
-            access_key = await self.get_access_key()
+        signer = await self._free_signers.get()
+
+        try:
+            access_key = await self.get_access_key(signer)
             await self._update_last_block_hash()
 
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
@@ -134,43 +150,43 @@ class Account(object):
                 access_key.nonce + 1,
                 actions,
                 block_hash,
-                self._signer,
+                signer,
             )
             if nowait:
                 return await self._provider.send_tx(serialized_tx)
-
             result = await self._provider.send_tx_and_wait(serialized_tx)
+
             if "Failure" in result["status"]:
                 error_type, args = list(
                     result["status"]["Failure"]["ActionError"]["kind"].items()
                 )[0]
                 raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
-
-        return TransactionResult(**result)
+            return TransactionResult(**result)
+        except Exception as e:
+            raise e
+        finally:
+            print("Unlock sender")
+            await self._free_signers.put(signer)
 
     @property
-    def account_id(self) -> str:
-        return str(self._signer.account_id)
-
-    @property
-    def signer(self) -> InMemorySigner:
-        return self._signer
+    def signer(self) -> Optional[InMemorySigner]:
+        if not self._signers:
+            return None
+        return self._signers[0]
 
     @property
     def provider(self) -> JsonProvider:
         return self._provider
 
-    async def get_access_key(self) -> AccountAccessKey:
+    async def get_access_key(self, signer: Signer = None) -> AccountAccessKey:
         """
         Get access key for current account
         :return: AccountAccessKey
         """
-        if self._signer is None:
-            raise ValueError(
-                "Signer is not initialized, use Account(account_id, private_key)"
-            )
+        if signer is None:
+            signer = self._signers[0]
         resp = await self._provider.get_access_key(
-            self.account_id, str(self._signer.public_key)
+            self.account_id, str(signer.public_key)
         )
         if "error" in resp:
             raise ValueError(resp["error"])
@@ -195,7 +211,9 @@ class Account(object):
         """Fetch state for given account."""
         return await self._provider.get_account(self.account_id)
 
-    async def send_money(self, account_id: str, amount: int, nowait: bool = False) -> TransactionResult:
+    async def send_money(
+        self, account_id: str, amount: int, nowait: bool = False
+    ) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
