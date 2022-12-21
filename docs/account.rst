@@ -237,16 +237,20 @@ Documentation
     :return: transaction hash or TransactionResult
 
 
-.. function:: get_balance(account_id: str = None)
+.. function:: get_balance(account_id: str = None, token_id: str = None)
 
     Get account balance
 
     :param account_id: if account_id is None, return balance of current account
-    :return: balance of account in yoctoNEAR
+    :param token_id: Ex: "token.sweat". If token_id is None, return balance of NEAR token
+    :return: balance of account in yocto
 
     .. code:: python
 
-        result = await acc.get_balance("usn.near")
+        result = await acc.get_balance("bob.near")
+        print(result)
+
+        result = await acc.get_balance(account"bob.near", "token.sweat")
         print(result)
 
 

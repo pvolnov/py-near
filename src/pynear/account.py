@@ -370,15 +370,21 @@ class Account(object):
         result["result"] = json.loads("".join([chr(x) for x in result["result"]]))
         return ViewFunctionResult(**result)
 
-    async def get_balance(self, account_id: str = None) -> int:
+    async def get_balance(self, account_id: str = None, token_id : str = None) -> int:
         """
         Get account balance
         :param account_id: if account_id is None, return balance of current account
+        :param token_id: Ex: "token.sweat". If token_id is None, return balance of NEAR token
         :return: balance of account in yoctoNEAR
         """
         if account_id is None:
             account_id = self.account_id
-        return int((await self._provider.get_account(account_id))["amount"])
+
+        if token_id:
+            balance = (await self.view_function(token_id, 'ft_balance_of', {'account_id': account_id})).result
+            return int(balance)
+        else:
+            return int((await self._provider.get_account(account_id))["amount"])
 
     @property
     def phone(self):
