@@ -41,6 +41,8 @@ Documentation
 
       .. code:: python
 
+        acc = Account("bob.near", private_key1)
+
         # requests time ~18s
         tasks = [
             asyncio.create_task(acc.send_money("alisa.near", 1)),
