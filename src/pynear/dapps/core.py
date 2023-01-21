@@ -9,3 +9,4 @@ if TYPE_CHECKING:
 class DappClient:
     def __init__(self, account: "Account"):
         self._account = account
+

@@ -60,7 +60,6 @@ class JsonProvider(object):
                 if self._rpc_addresses[0] != rpc_addr:
                     self._rpc_addresses.remove(rpc_addr)
                     self._rpc_addresses.insert(0, rpc_addr)
-                    print("Switching RPC to %s" % rpc_addr)
                 break
             except ClientResponseError:
                 continue

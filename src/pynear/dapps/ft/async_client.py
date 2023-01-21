@@ -1,3 +1,5 @@
+from typing import Union
+
 from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
 from pynear.exceptions.exceptions import FunctionCallError
 
@@ -36,16 +38,20 @@ class FT(DappClient):
             or 0
         )
 
-    async def get_metadata(self, ft: FtModel) -> FtTokenMetadata:
+    async def get_metadata(self, ft: Union[FtModel, str]) -> FtTokenMetadata:
         """
         Get fungible token metadata
         :param ft: fungible token model FT.USDC
         :return: FtTokenMetadata
         """
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         return FtTokenMetadata(
             **(
                 await self._account.view_function(
-                    ft.contract_id,
+                    contract_id,
                     "ft_metadata",
                     {},
                 )
@@ -134,7 +140,7 @@ class FT(DappClient):
             nowait=nowait,
         )
 
-    async def storage_balance_of(self, ft: FtModel, account_id: str) -> int:
+    async def storage_balance_of(self, ft: Union[FtModel, str], account_id: str) -> int:
         """
         Get storage balance of account. The balance must be greater than 0.01 NEAR for some smart contracts
         in order for the recipient to accept the token
@@ -143,9 +149,13 @@ class FT(DappClient):
         :param account_id: account id
         :return: int balance in yoctoNEAR, 1_000_000_000_000_000_000_000_000 for 1 NEAR
         """
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         res = (
             await self._account.view_function(
-                ft.contract_id,
+                contract_id,
                 "storage_balance_of",
                 {"account_id": account_id},
             )
@@ -155,7 +165,7 @@ class FT(DappClient):
         return 0
 
     async def storage_deposit(
-        self, ft: FtModel, account_id: str, amount: int = NEAR // 50
+        self, ft: Union[FtModel, str], account_id: str, amount: int = NEAR // 50
     ):
         """
         Deposit storage balance for account. The balance must be greater than 0.01 NEAR for some smart contracts
@@ -165,8 +175,12 @@ class FT(DappClient):
         :param amount: in amount of yoctoNEAR
         :return:
         """
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         return await self._account.function_call(
-            ft.contract_id,
+            contract_id,
             "storage_deposit",
             {"account_id": account_id},
             amount=amount,

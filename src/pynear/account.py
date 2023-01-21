@@ -26,7 +26,7 @@ from pynear.exceptions.exceptions import (
     TriesToUnstakeError,
     TriesToStakeError,
     FunctionCallError,
-    NewReceiptValidationError,
+    NewReceiptValidationError, ExecutionError,
 )
 from pynear.models import (
     TransactionResult,
@@ -51,6 +51,7 @@ _ERROR_TYPE_TO_EXCEPTION = {
     "TriesToUnstake": TriesToUnstakeError,
     "TriesToStake": TriesToStakeError,
     "FunctionCallError": FunctionCallError,
+    "ExecutionError": ExecutionError,
     "NewReceiptValidationError": NewReceiptValidationError,
 }
 
