@@ -1,5 +1,5 @@
-from pynear.dapps.core import DappClient
-from pynear.dapps.keypom.models import CreateDropModel
+from py_near.dapps.core import DappClient
+from py_near.dapps.keypom.models import CreateDropModel
 
 _KEYPOM_CONTRACT_ID = "keypom.near"
 

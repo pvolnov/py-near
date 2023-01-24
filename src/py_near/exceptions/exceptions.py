@@ -157,6 +157,12 @@ class FunctionCallError(ActionErrorKind):
         self.error = kwargs
 
 
+class ExecutionError(FunctionCallError):
+    """
+    An error occurred during a `FunctionCall` Action.
+    """
+
+
 class NewReceiptValidationError(ActionErrorKind):
     """
     Error occurs when a new `ActionReceipt` created by the `FunctionCall` action fails

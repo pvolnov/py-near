@@ -8,12 +8,12 @@ from pyonear.account_id import AccountId
 from pyonear.crypto import InMemorySigner, ED25519SecretKey, Signer
 from pyonear.transaction import Action
 
-from pynear import utils
-from pynear import constants
-from pynear.dapps.ft.async_client import FT
-from pynear.dapps.phone.async_client import Phone
-from pynear.dapps.staking.async_client import Staking
-from pynear.exceptions.exceptions import (
+from py_near import utils
+from py_near import constants
+from py_near.dapps.ft.async_client import FT
+from py_near.dapps.phone.async_client import Phone
+from py_near.dapps.staking.async_client import Staking
+from py_near.exceptions.exceptions import (
     AccountAlreadyExistsError,
     AccountDoesNotExistError,
     CreateAccountNotAllowedError,
@@ -26,16 +26,16 @@ from pynear.exceptions.exceptions import (
     TriesToUnstakeError,
     TriesToStakeError,
     FunctionCallError,
-    NewReceiptValidationError,
+    NewReceiptValidationError, ExecutionError,
 )
-from pynear.models import (
+from py_near.models import (
     TransactionResult,
     ViewFunctionResult,
     PublicKey,
     AccountAccessKey,
 )
-from pynear.providers import JsonProvider
-from pynear import transactions
+from py_near.providers import JsonProvider
+from py_near import transactions
 
 
 _ERROR_TYPE_TO_EXCEPTION = {
@@ -51,6 +51,7 @@ _ERROR_TYPE_TO_EXCEPTION = {
     "TriesToUnstake": TriesToUnstakeError,
     "TriesToStake": TriesToStakeError,
     "FunctionCallError": FunctionCallError,
+    "ExecutionError": ExecutionError,
     "NewReceiptValidationError": NewReceiptValidationError,
 }
 
@@ -378,7 +379,10 @@ class Account(object):
         """
         if account_id is None:
             account_id = self.account_id
-        return int((await self._provider.get_account(account_id))["amount"])
+        data = await self._provider.get_account(account_id)
+        if not data:
+            return 0
+        return int(data["amount"])
 
     @property
     def phone(self):

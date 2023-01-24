@@ -1,30 +1,41 @@
-from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
-from pynear.exceptions.exceptions import FunctionCallError
+from typing import Union
 
-from pynear.dapps.core import DappClient, NEAR
-from pynear.dapps.ft.models import FtTokenMetadata
-from pynear.dapps.fts import FtModel
+from py_near.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
+from py_near.exceptions.exceptions import FunctionCallError
+
+from py_near.dapps.core import DappClient, NEAR
+from py_near.dapps.ft.models import FtTokenMetadata
+from py_near.dapps.fts import FtModel
+from typing import Optional
 
 
 class FT(DappClient):
-    async def get_ft_balance(self, ft: FtModel, account_id: str) -> float:
+    async def get_ft_balance(
+        self, ft: FtModel, account_id: Optional[str] = None
+    ) -> float:
         """
         Get fungible token balance
         :param ft: fungible token model FT.USDC
         :param account_id: account id
         :return: amount // 10**ft.decimal
         """
+        if not account_id:
+            account_id = self._account.account_id
         return (
             await self.get_ft_raw_balance(ft.contract_id, account_id) / 10**ft.decimal
         )
 
-    async def get_ft_raw_balance(self, contract_id: str, account_id: str) -> int:
+    async def get_ft_raw_balance(
+        self, contract_id: str, account_id: Optional[str] = None
+    ) -> int:
         """
         Get fungible token raw balance
         :param contract_id: fungible token contract adress
         :param account_id: account id
         :return: amount
         """
+        if not account_id:
+            account_id = self._account.account_id
         return int(
             (
                 await self._account.view_function(
@@ -36,16 +47,20 @@ class FT(DappClient):
             or 0
         )
 
-    async def get_metadata(self, ft: FtModel) -> FtTokenMetadata:
+    async def get_metadata(self, ft: Union[FtModel, str]) -> FtTokenMetadata:
         """
         Get fungible token metadata
         :param ft: fungible token model FT.USDC
         :return: FtTokenMetadata
         """
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         return FtTokenMetadata(
             **(
                 await self._account.view_function(
-                    ft.contract_id,
+                    contract_id,
                     "ft_metadata",
                     {},
                 )
@@ -134,7 +149,9 @@ class FT(DappClient):
             nowait=nowait,
         )
 
-    async def storage_balance_of(self, ft: FtModel, account_id: str) -> int:
+    async def storage_balance_of(
+        self, ft: Union[FtModel, str], account_id: Optional[str] = None
+    ) -> int:
         """
         Get storage balance of account. The balance must be greater than 0.01 NEAR for some smart contracts
         in order for the recipient to accept the token
@@ -143,9 +160,15 @@ class FT(DappClient):
         :param account_id: account id
         :return: int balance in yoctoNEAR, 1_000_000_000_000_000_000_000_000 for 1 NEAR
         """
+        if not account_id:
+            account_id = self._account.account_id
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         res = (
             await self._account.view_function(
-                ft.contract_id,
+                contract_id,
                 "storage_balance_of",
                 {"account_id": account_id},
             )
@@ -155,7 +178,10 @@ class FT(DappClient):
         return 0
 
     async def storage_deposit(
-        self, ft: FtModel, account_id: str, amount: int = NEAR // 50
+        self,
+        ft: Union[FtModel, str],
+        account_id: Optional[str] = None,
+        amount: int = NEAR // 50,
     ):
         """
         Deposit storage balance for account. The balance must be greater than 0.01 NEAR for some smart contracts
@@ -165,8 +191,14 @@ class FT(DappClient):
         :param amount: in amount of yoctoNEAR
         :return:
         """
+        if not account_id:
+            account_id = self._account.account_id
+        if isinstance(ft, FtModel):
+            contract_id = ft.contract_id
+        else:
+            contract_id = ft
         return await self._account.function_call(
-            ft.contract_id,
+            contract_id,
             "storage_deposit",
             {"account_id": account_id},
             amount=amount,

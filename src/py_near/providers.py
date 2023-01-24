@@ -3,9 +3,9 @@ import json
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
-from pynear import constants
-from pynear.exceptions.exceptions import RpcNotAvailableError
-from pynear.exceptions.provider import (
+from py_near import constants
+from py_near.exceptions.exceptions import RpcNotAvailableError
+from py_near.exceptions.provider import (
     UnknownBlockError,
     InvalidAccount,
     NoContractCodeError,
@@ -60,7 +60,6 @@ class JsonProvider(object):
                 if self._rpc_addresses[0] != rpc_addr:
                     self._rpc_addresses.remove(rpc_addr)
                     self._rpc_addresses.insert(0, rpc_addr)
-                    print("Switching RPC to %s" % rpc_addr)
                 break
             except ClientResponseError:
                 continue
