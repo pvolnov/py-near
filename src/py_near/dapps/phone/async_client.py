@@ -4,12 +4,12 @@ from typing import List
 
 import aiohttp
 
-from pynear.constants import TGAS
-from pynear.dapps.core import DappClient, NEAR
-from pynear.dapps.fts import FtModel
-from pynear.dapps.phone.exceptions import RequestLimitError
-from pynear.dapps.phone.models import NearTrustTransaction, FtTrustTransaction
-from pynear.exceptions.exceptions import FunctionCallError
+from py_near.constants import TGAS
+from py_near.dapps.core import DappClient, NEAR
+from py_near.dapps.fts import FtModel
+from py_near.dapps.phone.exceptions import RequestLimitError
+from py_near.dapps.phone.models import NearTrustTransaction, FtTrustTransaction
+from py_near.exceptions.exceptions import FunctionCallError
 
 _PHONE_CONTRACT_ID = "phone.herewallet.near"
 

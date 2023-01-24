@@ -1,9 +1,9 @@
 from typing import Optional
 
-from pynear.dapps.core import DappClient
-from pynear.dapps.staking.exceptions import NotEnoughBalance
-from pynear.dapps.staking.models import StakingData
-from pynear.exceptions.exceptions import FunctionCallError
+from py_near.dapps.core import DappClient
+from py_near.dapps.staking.exceptions import NotEnoughBalance
+from py_near.dapps.staking.models import StakingData
+from py_near.exceptions.exceptions import FunctionCallError
 
 CONTRACT_ID = {
     "mainnet": "storage.herewallet.near",

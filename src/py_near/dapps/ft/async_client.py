@@ -1,11 +1,11 @@
 from typing import Union
 
-from pynear.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
-from pynear.exceptions.exceptions import FunctionCallError
+from py_near.dapps.ft.exceptions import NotRegisteredError, NotEnoughBalance
+from py_near.exceptions.exceptions import FunctionCallError
 
-from pynear.dapps.core import DappClient, NEAR
-from pynear.dapps.ft.models import FtTokenMetadata
-from pynear.dapps.fts import FtModel
+from py_near.dapps.core import DappClient, NEAR
+from py_near.dapps.ft.models import FtTokenMetadata
+from py_near.dapps.fts import FtModel
 from typing import Optional
 
 
