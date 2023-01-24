@@ -379,7 +379,10 @@ class Account(object):
         """
         if account_id is None:
             account_id = self.account_id
-        return int((await self._provider.get_account(account_id))["amount"])
+        data = await self._provider.get_account(account_id)
+        if not data:
+            return 0
+        return int(data["amount"])
 
     @property
     def phone(self):
