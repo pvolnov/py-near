@@ -1,33 +1,20 @@
 import asyncio
 import collections
 import json
-from typing import List, Union, Tuple, Dict, Optional
+from typing import List, Union, Dict, Optional
 
 import base58
 from pyonear.account_id import AccountId
 from pyonear.crypto import InMemorySigner, ED25519SecretKey, Signer
 from pyonear.transaction import Action
 
-from py_near import utils
 from py_near import constants
+from py_near import transactions
+from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.phone.async_client import Phone
 from py_near.dapps.staking.async_client import Staking
-from py_near.exceptions.exceptions import (
-    AccountAlreadyExistsError,
-    AccountDoesNotExistError,
-    CreateAccountNotAllowedError,
-    ActorNoPermissionError,
-    DeleteKeyDoesNotExistError,
-    AddKeyAlreadyExistsError,
-    DeleteAccountStakingError,
-    DeleteAccountHasRentError,
-    RentUnpaidError,
-    TriesToUnstakeError,
-    TriesToStakeError,
-    FunctionCallError,
-    NewReceiptValidationError, ExecutionError,
-)
+from py_near.exceptions.exceptions import parse_error
 from py_near.models import (
     TransactionResult,
     ViewFunctionResult,
@@ -35,25 +22,6 @@ from py_near.models import (
     AccountAccessKey,
 )
 from py_near.providers import JsonProvider
-from py_near import transactions
-
-
-_ERROR_TYPE_TO_EXCEPTION = {
-    "AccountAlreadyExists": AccountAlreadyExistsError,
-    "AccountDoesNotExist": AccountDoesNotExistError,
-    "CreateAccountNotAllowed": CreateAccountNotAllowedError,
-    "ActorNoPermission": ActorNoPermissionError,
-    "DeleteKeyDoesNotExist": DeleteKeyDoesNotExistError,
-    "AddKeyAlreadyExists": AddKeyAlreadyExistsError,
-    "DeleteAccountStaking": DeleteAccountStakingError,
-    "DeleteAccountHasRent": DeleteAccountHasRentError,
-    "RentUnpaid": RentUnpaidError,
-    "TriesToUnstake": TriesToUnstakeError,
-    "TriesToStake": TriesToStakeError,
-    "FunctionCallError": FunctionCallError,
-    "ExecutionError": ExecutionError,
-    "NewReceiptValidationError": NewReceiptValidationError,
-}
 
 
 class ViewFunctionError(Exception):
@@ -161,7 +129,7 @@ class Account(object):
                 error_type, args = list(
                     result["status"]["Failure"]["ActionError"]["kind"].items()
                 )[0]
-                raise _ERROR_TYPE_TO_EXCEPTION[error_type](**args)
+                raise parse_error(error_type, args)
             return TransactionResult(**result)
         except Exception as e:
             raise e

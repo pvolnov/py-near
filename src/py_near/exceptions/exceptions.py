@@ -169,3 +169,25 @@ class NewReceiptValidationError(ActionErrorKind):
     """
 
     pass
+
+
+_ERROR_TYPE_TO_EXCEPTION = {
+    "AccountAlreadyExists": AccountAlreadyExistsError,
+    "AccountDoesNotExist": AccountDoesNotExistError,
+    "CreateAccountNotAllowed": CreateAccountNotAllowedError,
+    "ActorNoPermission": ActorNoPermissionError,
+    "DeleteKeyDoesNotExist": DeleteKeyDoesNotExistError,
+    "AddKeyAlreadyExists": AddKeyAlreadyExistsError,
+    "DeleteAccountStaking": DeleteAccountStakingError,
+    "DeleteAccountHasRent": DeleteAccountHasRentError,
+    "RentUnpaid": RentUnpaidError,
+    "TriesToUnstake": TriesToUnstakeError,
+    "TriesToStake": TriesToStakeError,
+    "FunctionCallError": FunctionCallError,
+    "ExecutionError": ExecutionError,
+    "NewReceiptValidationError": NewReceiptValidationError,
+}
+
+
+def parse_error(error_type, args):
+    return _ERROR_TYPE_TO_EXCEPTION[error_type](**args)

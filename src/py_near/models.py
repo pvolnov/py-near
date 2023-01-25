@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Any, Optional, Union
 
+from py_near.exceptions.exceptions import parse_error
+
 
 class ReceiptOutcome:
     logs: List[str]
@@ -19,6 +21,14 @@ class ReceiptOutcome:
         self.status = data["outcome"]["status"]
         self.tokens_burnt = data["outcome"]["tokens_burnt"]
         self.gas_burnt = data["outcome"]["gas_burnt"]
+
+    @property
+    def error(self):
+        if "Failure" in self.status:
+            error_type, args = list(
+                self.status["Failure"]["ActionError"]["kind"].items()
+            )[0]
+            return parse_error(error_type, args)
 
 
 class TransactionData:
@@ -106,7 +116,9 @@ class AccessKey:
     @classmethod
     def build(cls, data: dict) -> "AccessKey":
         if data["permission"] == PublicKeyPermissionType.FULL_ACCESS:
-            return cls(nonce=data["nonce"], permission_type=PublicKeyPermissionType.FULL_ACCESS)
+            return cls(
+                nonce=data["nonce"], permission_type=PublicKeyPermissionType.FULL_ACCESS
+            )
 
         permission_type, permission_data = list(data["permission"].items())[0]
         return cls(
