@@ -56,7 +56,7 @@ class JsonProvider(object):
         for rpc_addr in self._rpc_addresses:
             try:
                 async with aiohttp.ClientSession() as session:
-                    r = await session.post(rpc_addr, json=j, timeout=timeout)
+                    r = await session.post(rpc_addr, json=j, timeout=30)
                     r.raise_for_status()
                     content = json.loads(await r.text())
                 if self._rpc_addresses[0] != rpc_addr:
@@ -66,6 +66,8 @@ class JsonProvider(object):
             except ClientResponseError:
                 continue
             except ClientConnectorError:
+                continue
+            except RpcTimeoutError:
                 continue
             except ConnectionError:
                 continue
@@ -158,6 +160,13 @@ class JsonProvider(object):
         )
 
     async def get_access_key(self, account_id, public_key, finality="optimistic"):
+        """
+
+        :param account_id:
+        :param public_key:
+        :param finality:
+        :return: {'block_hash': '..', 'block_height': int, 'nonce': int, 'permission': 'FullAccess'}
+        """
         return await self.json_rpc(
             "query",
             {
