@@ -3,6 +3,8 @@ import json
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
+from py_near.constants import TIMEOUT_WAIT_RPC
+
 from py_near.models import TransactionResult
 
 from py_near import constants
@@ -49,14 +51,14 @@ class JsonProvider(object):
         else:
             self._rpc_addresses = [rpc_addr]
 
-    async def call_rpc_request(self, method, params, timeout=60):
+    async def call_rpc_request(self, method, params, timeout=TIMEOUT_WAIT_RPC):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
         for rpc_addr in self._rpc_addresses:
             try:
                 async with aiohttp.ClientSession() as session:
-                    r = await session.post(rpc_addr, json=j, timeout=30)
+                    r = await session.post(rpc_addr, json=j, timeout=timeout)
                     r.raise_for_status()
                     content = json.loads(await r.text())
                 if self._rpc_addresses[0] != rpc_addr:
@@ -93,7 +95,7 @@ class JsonProvider(object):
                     break
             return error
 
-    async def json_rpc(self, method, params, timeout=60):
+    async def json_rpc(self, method, params, timeout=TIMEOUT_WAIT_RPC):
         content = await self.call_rpc_request(method, params, timeout)
         if not content:
             raise RpcNotAvailableError("RPC not available")
@@ -129,7 +131,7 @@ class JsonProvider(object):
 
     async def get_status(self):
         async with aiohttp.ClientSession() as session:
-            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=60)
+            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=TIMEOUT_WAIT_RPC)
             r.raise_for_status()
             return json.loads(await r.text())
 
