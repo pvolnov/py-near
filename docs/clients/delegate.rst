@@ -95,8 +95,8 @@ The following Python function creates and signs a delegate transaction from ``al
         sender_id="alisa.near",
         receiver_id="illia.near",
         actions=[TransferAction(1)],
-        nonce=94825362000001 + 1,
-        max_block_height=94882153 + 1,
+        nonce=ALISA_KEY_NONCE + 1,
+        max_block_height=CURRENT_BLOCK_HEIGHT + 1,
         public_key=public_key,
     )
 
