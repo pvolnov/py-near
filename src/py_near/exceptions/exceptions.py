@@ -170,6 +170,13 @@ class NewReceiptValidationError(ActionErrorKind):
 
     pass
 
+class DelegateActionExpired(ActionErrorKind):
+    """
+    Error occurs when a new `DelegateActionExpired` created by the `FunctionCall` action fails
+    """
+
+    pass
+
 
 _ERROR_TYPE_TO_EXCEPTION = {
     "AccountAlreadyExists": AccountAlreadyExistsError,
@@ -186,6 +193,7 @@ _ERROR_TYPE_TO_EXCEPTION = {
     "FunctionCallError": FunctionCallError,
     "ExecutionError": ExecutionError,
     "NewReceiptValidationError": NewReceiptValidationError,
+    "'DelegateActionExpired'": DelegateActionExpired,
 }
 
 

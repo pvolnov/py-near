@@ -3,6 +3,8 @@ import json
 
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError
+from loguru import logger
+
 from py_near.constants import TIMEOUT_WAIT_RPC
 
 from py_near.models import TransactionResult
@@ -62,16 +64,17 @@ class JsonProvider(object):
                     r.raise_for_status()
                     content = json.loads(await r.text())
                 if self._rpc_addresses[0] != rpc_addr:
+                    logger.info(f"Rpc update: {rpc_addr}")
                     self._rpc_addresses.remove(rpc_addr)
                     self._rpc_addresses.insert(0, rpc_addr)
                 break
-            except ClientResponseError:
-                continue
-            except ClientConnectorError:
-                continue
-            except RpcTimeoutError:
-                continue
-            except ConnectionError:
+            except (
+                RpcTimeoutError,
+                ClientResponseError,
+                ClientConnectorError,
+                ConnectionError,
+            ) as e:
+                logger.error(f"Rpc error: {e}")
                 continue
         return content
 
@@ -86,6 +89,8 @@ class JsonProvider(object):
             while True:
                 if not isinstance(body, dict):
                     break
+                if not body:
+                    return error
                 key, body = list(body.items())[0]
                 if key in ERROR_CODE_TO_EXCEPTION:
                     error = ERROR_CODE_TO_EXCEPTION[key](
@@ -131,7 +136,9 @@ class JsonProvider(object):
 
     async def get_status(self):
         async with aiohttp.ClientSession() as session:
-            r = await session.get("%s/status" % self._rpc_addresses[0], timeout=TIMEOUT_WAIT_RPC)
+            r = await session.get(
+                "%s/status" % self._rpc_addresses[0], timeout=TIMEOUT_WAIT_RPC
+            )
             r.raise_for_status()
             return json.loads(await r.text())
 

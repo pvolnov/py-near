@@ -5,7 +5,34 @@ from enum import Enum
 from json import JSONDecodeError
 from typing import List, Any, Optional, Union
 
+import base58
+from py_near_primitives import (
+    DelegateAction,
+    TransferAction,
+    DeleteAccountAction,
+    FunctionCallAction,
+    DeployContractAction,
+    CreateAccountAction,
+    SignedDelegateAction,
+    DeleteKeyAction,
+    AddKeyAction,
+    StakeAction,
+)
+
 from py_near.exceptions.exceptions import parse_error
+
+Action = Union[
+    DelegateAction,
+    TransferAction,
+    DeleteAccountAction,
+    FunctionCallAction,
+    DeployContractAction,
+    CreateAccountAction,
+    SignedDelegateAction,
+    DeleteKeyAction,
+    AddKeyAction,
+    StakeAction,
+]
 
 
 class ReceiptOutcome:
@@ -43,6 +70,7 @@ class ActionType(str, Enum):
     STAKE = "Stake"
     DELETE_KEY = "DeleteKey"
     DEPLOY_CONTRACT = "DeployContract"
+    DELEGATE = "Delegate"
 
 
 class PublicKeyPermissionType(str, Enum):
@@ -74,10 +102,82 @@ class AccessKey:
 
 
 @dataclass
+class ReceiptDelegateAction:
+    actions: List["ReceiptAction"]
+    sender_id: str
+    receiver_id: str
+    public_key: str
+    nonce: int
+    max_block_height: int
+
+    @classmethod
+    def build(cls, data: dict) -> "ReceiptDelegateAction":
+        actions = [ReceiptAction.build(action) for action in data["actions"]]
+        del data["actions"]
+        return cls(
+            actions=actions,
+            **data,
+        )
+
+    @property
+    def near_delegate_action(self) -> DelegateAction:
+        return DelegateAction(
+            sender_id=self.sender_id,
+            receiver_id=self.receiver_id,
+            actions=[a.near_action for a in self.actions],
+            nonce=self.nonce,
+            max_block_height=self.max_block_height,
+            public_key=base58.b58decode(self.public_key),
+        )
+
+    @property
+    def nep461_hash(self) -> bytes:
+        return bytes(bytearray(self.near_delegate_action.get_nep461_hash()))
+
+
+@dataclass
+class DelegateActionModel:
+    actions: List[
+        Union[
+            DelegateAction,
+            TransferAction,
+            DeleteAccountAction,
+            FunctionCallAction,
+            DeployContractAction,
+            CreateAccountAction,
+            SignedDelegateAction,
+            DeleteKeyAction,
+            AddKeyAction,
+            StakeAction,
+        ]
+    ]
+    sender_id: str
+    receiver_id: str
+    public_key: str
+    nonce: int
+    max_block_height: int
+
+    @property
+    def near_delegate_action(self) -> DelegateAction:
+        return DelegateAction(
+            sender_id=self.sender_id,
+            receiver_id=self.receiver_id,
+            actions=self.actions,
+            nonce=self.nonce,
+            max_block_height=self.max_block_height,
+            public_key=base58.b58decode(self.public_key),
+        )
+
+    @property
+    def nep461_hash(self) -> bytes:
+        return bytes(bytearray(self.near_delegate_action.get_nep461_hash()))
+
+
+@dataclass
 class ReceiptAction:
     transactions_type: ActionType
     # Transaction
-    deposit: str
+    deposit: Optional[str] = None
     gas: Optional[str] = field(default=None)
     # FunctionCall
     method_name: Optional[str] = field(default=None)
@@ -89,6 +189,9 @@ class ReceiptAction:
     access_key: Optional[AccessKey] = field(default=None)
     # Stake
     stake: Optional[int] = field(default=None)
+    # Delegate
+    signature: Optional[str] = field(default=None)
+    delegate_action: Optional[ReceiptDelegateAction] = field(default=None)
 
     @classmethod
     def build(cls, data: dict) -> "ReceiptAction":
@@ -106,6 +209,16 @@ class ReceiptAction:
                 args = json.loads(args)
             except (UnicodeDecodeError, JSONDecodeError):
                 args = None
+
+        if action_type == ActionType.DELEGATE:
+            delegate_action = ReceiptDelegateAction.build(
+                action_data["delegate_action"]
+            )
+            return cls(
+                transactions_type=action_type,
+                signature=action_data["signature"],
+                delegate_action=delegate_action,
+            )
 
         action_data.pop("args", None)
         action_data.pop("access_key", None)

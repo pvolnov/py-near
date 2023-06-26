@@ -4,3 +4,4 @@ dist
 .idea
 tests
 py_near.egg-info
+poetry.lock

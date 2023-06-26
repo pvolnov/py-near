@@ -4,9 +4,8 @@ import json
 from typing import List, Union, Dict, Optional
 
 import base58
-from pyonear.account_id import AccountId
-from pyonear.crypto import InMemorySigner, ED25519SecretKey, Signer
-from pyonear.transaction import Action
+import ed25519
+from py_near_primitives import DelegateAction
 
 from py_near import constants
 from py_near import transactions
@@ -20,6 +19,8 @@ from py_near.models import (
     ViewFunctionResult,
     PublicKey,
     AccountAccessKey,
+    DelegateActionModel,
+    Action,
 )
 from py_near.providers import JsonProvider
 
@@ -38,6 +39,7 @@ class Account(object):
     _lock_by_pk: Dict[str, asyncio.Lock] = {}
     _latest_block_hash: str
     _latest_block_hash_ts: float = 0
+    _latest_block_height: int = 0
     chain_id: str = "mainnet"
 
     def __init__(
@@ -61,17 +63,18 @@ class Account(object):
 
         self._free_signers = asyncio.Queue()
         self._signers = []
+        self._signer_by_pk: Dict[str, bytes] = {}
+
         for pk in private_keys:
             if isinstance(pk, str):
                 pk = base58.b58decode(pk.replace("ed25519:", ""))
-            key = ED25519SecretKey(pk)
-            singer = InMemorySigner(
-                AccountId(account_id),
-                key.public_key(),
-                key,
-            )
-            self._free_signers.put_nowait(singer)
-            self._signers.append(singer)
+            private_key = ed25519.SigningKey(pk)
+            public_key = base58.b58encode(
+                private_key.get_verifying_key().to_bytes()
+            ).decode("utf-8")
+            self._signer_by_pk[public_key] = pk
+            self._free_signers.put_nowait(pk)
+            self._signers.append(pk)
 
     async def startup(self):
         """
@@ -92,6 +95,9 @@ class Account(object):
         self._latest_block_hash = (await self._provider.get_status())["sync_info"][
             "latest_block_hash"
         ]
+        self._latest_block_height = (await self._provider.get_status())["sync_info"][
+            "latest_block_height"
+        ]
         self._latest_block_hash_ts = utils.timestamp()
 
     async def _sign_and_submit_tx(
@@ -107,25 +113,30 @@ class Account(object):
         """
         if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
-        signer = await self._free_signers.get()
+        pk = await self._free_signers.get()
 
         try:
-            access_key = await self.get_access_key(signer)
+            access_key = await self.get_access_key(pk)
             await self._update_last_block_hash()
 
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
             serialized_tx = transactions.sign_and_serialize_transaction(
+                self.account_id,
+                pk,
                 receiver_id,
                 access_key.nonce + 1,
                 actions,
                 block_hash,
-                signer,
             )
             if nowait:
                 return await self._provider.send_tx(serialized_tx)
             result = await self._provider.send_tx_and_wait(serialized_tx)
 
             if "Failure" in result["status"]:
+                if isinstance(result["status"]["Failure"]["ActionError"]["kind"], str):
+                    error_type = result["status"]["Failure"]["ActionError"]["kind"]
+                    raise parse_error(error_type, {})
+
                 error_type, args = list(
                     result["status"]["Failure"]["ActionError"]["kind"].items()
                 )[0]
@@ -134,10 +145,10 @@ class Account(object):
         except Exception as e:
             raise e
         finally:
-            await self._free_signers.put(signer)
+            await self._free_signers.put(pk)
 
     @property
-    def signer(self) -> Optional[InMemorySigner]:
+    def signer(self) -> Optional[bytes]:
         if not self._signers:
             return None
         return self._signers[0]
@@ -146,15 +157,19 @@ class Account(object):
     def provider(self) -> JsonProvider:
         return self._provider
 
-    async def get_access_key(self, signer: Signer = None) -> AccountAccessKey:
+    async def get_access_key(self, pk: bytes) -> AccountAccessKey:
         """
         Get access key for current account
         :return: AccountAccessKey
         """
-        if signer is None:
-            signer = self._signers[0]
+        if pk is None:
+            pk = self._signers[0]
+
+        private_key = ed25519.SigningKey(pk)
+        public_key = private_key.get_verifying_key()
+
         resp = await self._provider.get_access_key(
-            self.account_id, str(signer.public_key)
+            self.account_id, base58.b58encode(public_key.to_bytes()).decode("utf8")
         )
         if "error" in resp:
             raise ValueError(resp["error"])
@@ -294,6 +309,24 @@ class Account(object):
         ]
         return await self._sign_and_submit_tx(self.account_id, actions, nowait)
 
+    async def call_delegate_transaction(
+        self,
+        delegate_action: Union[DelegateAction, DelegateActionModel],
+        signature: Union[bytes, str],
+        nowait=False,
+    ):
+        if isinstance(signature, str):
+            signature = base58.b58decode(signature.replace("ed25519:", ""))
+        if isinstance(delegate_action, DelegateActionModel):
+            delegate_action = delegate_action.near_delegate_action
+
+        actions = [
+            transactions.create_signed_delegate(delegate_action, signature),
+        ]
+        return await self._sign_and_submit_tx(
+            delegate_action.sender_id, actions, nowait
+        )
+
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
         Deploy smart contract to account
@@ -338,6 +371,56 @@ class Account(object):
             raise ViewFunctionError(result["error"])
         result["result"] = json.loads("".join([chr(x) for x in result["result"]]))
         return ViewFunctionResult(**result)
+
+    async def create_delegate_action(
+        self, actions: List[Action], receiver_id, public_key: Optional[str] = None
+    ):
+        """
+        Create delegate action from list of actions
+        :param actions:
+        :param receiver_id:
+        :return:
+        """
+        if public_key is None:
+            pk = self._signers[0]
+        else:
+            pk = self._signer_by_pk[public_key]
+        access_key = await self.get_access_key(pk)
+        await self._update_last_block_hash()
+
+        private_key = ed25519.SigningKey(pk)
+        public_key = private_key.get_verifying_key()
+        return DelegateActionModel(
+            sender_id=self.account_id,
+            receiver_id=receiver_id,
+            actions=actions,
+            nonce=access_key.nonce + 1,
+            max_block_height=self._latest_block_height + 1000,
+            public_key=base58.b58encode(public_key.to_bytes()).decode("utf-8"),
+        )
+
+    def sign_delegate_transaction(
+        self, delegate_action: Union[DelegateAction, DelegateActionModel]
+    ) -> str:
+        """
+        Sign delegate transaction
+        :param delegate_action: DelegateAction or DelegateActionModel
+        :return: signature (bytes)
+        """
+        if isinstance(delegate_action, DelegateActionModel):
+            delegate_action = delegate_action.near_delegate_action
+        nep461_hash = bytes(bytearray(delegate_action.get_nep461_hash()))
+
+        public_key = base58.b58encode(
+            bytes(bytearray(delegate_action.public_key))
+        ).decode("utf-8")
+
+        if public_key not in self._signer_by_pk:
+            raise ValueError(f"Public key {public_key} not found in signer list")
+
+        private_key = ed25519.SigningKey(self._signer_by_pk[public_key])
+        sign = private_key.sign(nep461_hash)
+        return base58.b58encode(sign).decode("utf-8")
 
     async def get_balance(self, account_id: str = None) -> int:
         """
