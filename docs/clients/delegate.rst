@@ -35,7 +35,7 @@ The following Python function creates and signs a delegate transaction.
     - ``delegate_action``: The ``DelegateActionModel`` object you created in the previous step.
     - ``signature``: The signature of the delegate transaction that you created in the previous step.
 
-You can execute this transaction from ANY NEAR Protocol account. In this way you can pay for gas for This way you can pay for gas for a transaction from another account.
+You can execute this transaction from **any** NEAR Protocol account.
 
 .. code-block:: python
 
@@ -46,25 +46,25 @@ You can execute this transaction from ANY NEAR Protocol account. In this way you
 
     async def f():
         account = Account(
-            "3d6ffb9c45a840b9f7a95066b8967e0d8f3730f5f73198471942b150281a832f",
+            "alisa.near",
             "ed25519::...",
             "https://nrpc.herewallet.app",
         )
 
-        action = await account.create_delegate_action(actions=[TransferAction(1)], receiver_id="mydev.near")
+        action = await account.create_delegate_action(actions=[TransferAction(1)], receiver_id="illia.near")
         sign = account.sign_delegate_transaction(action)
 
         account_to_execute = Account(
-            "owner.herewallet.near",
+            "bob.near",
             "ed25519:...",
             "https://nrpc.herewallet.app",
         )
-        res = await acc.call_delegate_transaction(
+        res = account_to_execute acc.call_delegate_transaction(
             delegate_action=action,
             signature=sign,
         )
 
-In this example, we transfer 1 yNEAR to the ``mydev.near`` account from the ``3d6ffb9c45a840b9f7a95066b8967e0d8f3730f5f73198471942b150281a832f`` account and paid for gas from owner.herewallet.near account.
+In this example, we transfer 1 yNEAR from  ``alisa.near``  to ``illia.near`` and pay for gas from ``bob.near`` balance.
 
 .. note::
     Replace the ``ed25519`` public and private keys in the ``Account`` objects with your actual account keys.
@@ -78,7 +78,7 @@ In this example, we transfer 1 yNEAR to the ``mydev.near`` account from the ``3d
 Make delegate transaction manually
 ----------------------------------
 
-The following Python function creates and signs a delegate transaction from ``3d6ffb9c45a840b9f7a95066b8967e0d8f3730f5f73198471942b150281a832f`` account.
+The following Python function creates and signs a delegate transaction from ``alisa.near`` account.
 
 
 .. code-block:: python
@@ -92,26 +92,26 @@ The following Python function creates and signs a delegate transaction from ``3d
     public_key = base58.b58encode(private_key.get_verifying_key().to_bytes()).decode()
 
     action = DelegateActionModel(
-        sender_id="3d6ffb9c45a840b9f7a95066b8967e0d8f3730f5f73198471942b150281a832f",
-        receiver_id="mydev.near",
+        sender_id="alisa.near",
+        receiver_id="illia.near",
         actions=[TransferAction(1)],
         nonce=94825362000001 + 1,
         max_block_height=94882153 + 1,
         public_key=public_key,
     )
 
-    sign = private_key.sign(bytes(bytearray(action.nep461_hash)))
+    sign = private_key.sign(action.nep461_hash)
 
 
 
-And now send this transaction and pay for gas from ``owner.herewallet.near`` account.
+And now send this transaction and pay for gas from ``bob.near`` account.
 
 .. code-block:: python
 
     from py_near.account import Account
 
     account_to_execute = Account(
-            "owner.herewallet.near",
+            "bob.near",
             "ed25519:...",
             "https://nrpc.herewallet.app",
         )
