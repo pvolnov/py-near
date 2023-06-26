@@ -104,7 +104,7 @@ The following Python function creates and signs a delegate transaction from ``al
 
 
 
-And now send this transaction and pay for gas from ``bob.near`` account.
+And now send this transaction and pay for gas from ``bob.near`` balance.
 
 .. code-block:: python
 
@@ -115,7 +115,7 @@ And now send this transaction and pay for gas from ``bob.near`` account.
             "ed25519:...",
             "https://nrpc.herewallet.app",
         )
-    res = await acc.call_delegate_transaction(
+    account_to_execute = await acc.call_delegate_transaction(
         delegate_action=action,
         signature=sign,
     )
