@@ -100,7 +100,7 @@ class Account(object):
         ]
         self._latest_block_hash_ts = utils.timestamp()
 
-    async def _sign_and_submit_tx(
+    async def sign_and_submit_tx(
         self, receiver_id, actions: List[Action], nowait=False
     ) -> Union[TransactionResult, str]:
         """
@@ -204,7 +204,7 @@ class Account(object):
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
-        return await self._sign_and_submit_tx(
+        return await self.sign_and_submit_tx(
             account_id, [transactions.create_transfer_action(amount)], nowait
         )
 
@@ -228,7 +228,7 @@ class Account(object):
         :return: transaction hash or TransactionResult
         """
         args = json.dumps(args).encode("utf8")
-        return await self._sign_and_submit_tx(
+        return await self.sign_and_submit_tx(
             contract_id,
             [transactions.create_function_call_action(method_name, args, gas, amount)],
             nowait,
@@ -255,7 +255,7 @@ class Account(object):
             transactions.create_full_access_key_action(public_key),
             transactions.create_transfer_action(initial_balance),
         ]
-        return await self._sign_and_submit_tx(account_id, actions, nowait)
+        return await self.sign_and_submit_tx(account_id, actions, nowait)
 
     async def add_public_key(
         self,
@@ -281,7 +281,7 @@ class Account(object):
                 public_key, allowance, receiver_id, method_names
             ),
         ]
-        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
+        return await self.sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def add_full_access_public_key(
         self, public_key: Union[str, bytes], nowait=False
@@ -295,7 +295,7 @@ class Account(object):
         actions = [
             transactions.create_full_access_key_action(public_key),
         ]
-        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
+        return await self.sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def delete_public_key(self, public_key: Union[str, bytes], nowait=False):
         """
@@ -307,7 +307,7 @@ class Account(object):
         actions = [
             transactions.create_delete_access_key_action(public_key),
         ]
-        return await self._sign_and_submit_tx(self.account_id, actions, nowait)
+        return await self.sign_and_submit_tx(self.account_id, actions, nowait)
 
     async def call_delegate_transaction(
         self,
@@ -323,7 +323,7 @@ class Account(object):
         actions = [
             transactions.create_signed_delegate(delegate_action, signature),
         ]
-        return await self._sign_and_submit_tx(
+        return await self.sign_and_submit_tx(
             delegate_action.sender_id, actions, nowait
         )
 
@@ -334,7 +334,7 @@ class Account(object):
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
-        return await self._sign_and_submit_tx(
+        return await self.sign_and_submit_tx(
             self.account_id,
             [transactions.create_deploy_contract_action(contract_code)],
             nowait,
@@ -348,7 +348,7 @@ class Account(object):
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
-        return await self._sign_and_submit_tx(
+        return await self.sign_and_submit_tx(
             self.account_id,
             [transactions.create_staking_action(public_key, amount)],
             nowait,
