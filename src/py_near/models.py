@@ -172,6 +172,10 @@ class DelegateActionModel:
     def nep461_hash(self) -> bytes:
         return bytes(bytearray(self.near_delegate_action.get_nep461_hash()))
 
+    @staticmethod
+    def bytes_to_json(data: bytes) -> dict:
+        return json.loads(DelegateAction.bytes_to_json(data))
+
 
 @dataclass
 class ReceiptAction:
@@ -297,11 +301,6 @@ class ViewFunctionResult:
         self.block_height = block_height
         self.logs = logs
         self.result = result
-
-
-class PublicKeyPermissionType(str, Enum):
-    FULL_ACCESS = "FullAccess"
-    FUNCTION_CALL = "FunctionCall"
 
 
 @dataclass
