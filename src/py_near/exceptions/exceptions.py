@@ -1,13 +1,17 @@
 import json
 from dataclasses import dataclass
 
+from py_near.exceptions.provider import LackBalanceForState
+
 
 class RpcNotAvailableError(Exception):
     pass
 
 
 class ActionErrorKind(Exception):
-    pass
+    def __init__(self, **kargs):
+        for arg, value in kargs.items():
+            setattr(self, arg, value)
 
 
 @dataclass
@@ -170,6 +174,7 @@ class NewReceiptValidationError(ActionErrorKind):
 
     pass
 
+
 class DelegateActionExpired(ActionErrorKind):
     """
     Error occurs when a new `DelegateActionExpired` created by the `FunctionCall` action fails
@@ -193,7 +198,8 @@ _ERROR_TYPE_TO_EXCEPTION = {
     "FunctionCallError": FunctionCallError,
     "ExecutionError": ExecutionError,
     "NewReceiptValidationError": NewReceiptValidationError,
-    "'DelegateActionExpired'": DelegateActionExpired,
+    "DelegateActionExpired": DelegateActionExpired,
+    "LackBalanceForState": LackBalanceForState,
 }
 
 
