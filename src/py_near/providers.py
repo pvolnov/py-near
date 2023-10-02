@@ -2,7 +2,7 @@ import base64
 import json
 
 import aiohttp
-from aiohttp import ClientResponseError, ClientConnectorError
+from aiohttp import ClientResponseError, ClientConnectorError, ServerDisconnectedError
 from loguru import logger
 
 from py_near.constants import TIMEOUT_WAIT_RPC
@@ -72,6 +72,7 @@ class JsonProvider(object):
                 RpcTimeoutError,
                 ClientResponseError,
                 ClientConnectorError,
+                ServerDisconnectedError,
                 ConnectionError,
             ) as e:
                 logger.error(f"Rpc error: {e}")
