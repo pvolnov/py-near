@@ -49,6 +49,33 @@ def sign_and_serialize_transaction(
     return base64.b64encode(signed_trx).decode("utf-8")
 
 
+def calc_trx_hash(
+    account_id,
+    private_key,
+    receiver_id,
+    nonce,
+    actions: List[Action],
+    block_hash: bytes,
+) -> str:
+    if isinstance(private_key, str):
+        pk = base58.b58decode(private_key.replace("ed25519:", ""))
+    else:
+        pk = private_key
+    private_key = ed25519.SigningKey(pk)
+
+    transaction = Transaction(
+        account_id,
+        private_key.get_verifying_key().to_bytes(),
+        nonce,
+        receiver_id,
+        block_hash,
+        actions,
+    )
+
+    signed_trx = bytes(bytearray(transaction.get_hash()))
+    return base58.b58encode(signed_trx).decode("utf-8")
+
+
 def create_create_account_action():
     return CreateAccountAction()
 

@@ -1,6 +1,9 @@
 import asyncio
+import base64
 import collections
+import hashlib
 import json
+import logging
 from typing import List, Union, Dict, Optional
 
 import base58
@@ -13,7 +16,7 @@ from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.phone.async_client import Phone
 from py_near.dapps.staking.async_client import Staking
-from py_near.exceptions.exceptions import parse_error
+from py_near.exceptions.provider import RpcTimeoutError
 from py_near.models import (
     TransactionResult,
     ViewFunctionResult,
@@ -120,6 +123,14 @@ class Account(object):
             await self._update_last_block_hash()
 
             block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
+            trx_hash = transactions.calc_trx_hash(
+                self.account_id,
+                pk,
+                receiver_id,
+                access_key.nonce + 1,
+                actions,
+                block_hash,
+            )
             serialized_tx = transactions.sign_and_serialize_transaction(
                 self.account_id,
                 pk,
@@ -128,20 +139,20 @@ class Account(object):
                 actions,
                 block_hash,
             )
+
             if nowait:
                 return await self._provider.send_tx(serialized_tx)
-            result = await self._provider.send_tx_and_wait(serialized_tx)
+            try:
+                result = await self._provider.send_tx_and_wait(serialized_tx)
+                return TransactionResult(**result)
+            except RpcTimeoutError:
+                for _ in range(constants.TIMEOUT_WAIT_RPC // 3):
+                    await asyncio.sleep(3)
+                    result = await self._provider.get_tx(trx_hash, receiver_id)
+                    if result:
+                        return result
+                raise RpcTimeoutError("Transaction not found")
 
-            if "Failure" in result["status"]:
-                if isinstance(result["status"]["Failure"]["ActionError"]["kind"], str):
-                    error_type = result["status"]["Failure"]["ActionError"]["kind"]
-                    raise parse_error(error_type, {})
-
-                error_type, args = list(
-                    result["status"]["Failure"]["ActionError"]["kind"].items()
-                )[0]
-                raise parse_error(error_type, args)
-            return TransactionResult(**result)
         except Exception as e:
             raise e
         finally:
@@ -227,10 +238,14 @@ class Account(object):
         :param nowait: if nowait is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
-        args = json.dumps(args).encode("utf8")
+        ser_args = json.dumps(args).encode("utf8")
         return await self.sign_and_submit_tx(
             contract_id,
-            [transactions.create_function_call_action(method_name, args, gas, amount)],
+            [
+                transactions.create_function_call_action(
+                    method_name, ser_args, gas, amount
+                )
+            ],
             nowait,
         )
 
@@ -323,9 +338,7 @@ class Account(object):
         actions = [
             transactions.create_signed_delegate(delegate_action, signature),
         ]
-        return await self.sign_and_submit_tx(
-            delegate_action.sender_id, actions, nowait
-        )
+        return await self.sign_and_submit_tx(delegate_action.sender_id, actions, nowait)
 
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
@@ -389,14 +402,14 @@ class Account(object):
         await self._update_last_block_hash()
 
         private_key = ed25519.SigningKey(pk)
-        public_key = private_key.get_verifying_key()
+        verifying_key = private_key.get_verifying_key()
         return DelegateActionModel(
             sender_id=self.account_id,
             receiver_id=receiver_id,
             actions=actions,
             nonce=access_key.nonce + 1,
             max_block_height=self._latest_block_height + 1000,
-            public_key=base58.b58encode(public_key.to_bytes()).decode("utf-8"),
+            public_key=base58.b58encode(verifying_key.to_bytes()).decode("utf-8"),
         )
 
     def sign_delegate_transaction(

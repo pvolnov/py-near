@@ -9,7 +9,7 @@ readme = "README.md"
 python = "^3.7"
 ed25519 = "^1.5"
 aiohttp = "^3.7.4"
-py-near-primitives = "^0.2.2"
+py-near-primitives = "^0.2.1"
 
 [tool.poetry.dev-dependencies]
 black = "^21.12b0"
