@@ -1,13 +1,10 @@
 import asyncio
-import base64
 import collections
-import hashlib
 import json
-import logging
 from typing import List, Union, Dict, Optional
 
 import base58
-import ed25519
+from nacl import signing, encoding
 from py_near_primitives import DelegateAction
 
 from py_near import constants
@@ -71,10 +68,8 @@ class Account(object):
         for pk in private_keys:
             if isinstance(pk, str):
                 pk = base58.b58decode(pk.replace("ed25519:", ""))
-            private_key = ed25519.SigningKey(pk)
-            public_key = base58.b58encode(
-                private_key.get_verifying_key().to_bytes()
-            ).decode("utf-8")
+            private_key = signing.SigningKey(pk)
+            public_key = private_key.verify_key.encode(encoder=encoding.Base58Encoder).decode("utf-8")
             self._signer_by_pk[public_key] = pk
             self._free_signers.put_nowait(pk)
             self._signers.append(pk)
@@ -176,8 +171,8 @@ class Account(object):
         if pk is None:
             pk = self._signers[0]
 
-        private_key = ed25519.SigningKey(pk)
-        public_key = private_key.get_verifying_key()
+        private_key = signing.SigningKey(pk)
+        public_key = private_key.verify_key
 
         resp = await self._provider.get_access_key(
             self.account_id, base58.b58encode(public_key.to_bytes()).decode("utf8")
@@ -401,15 +396,15 @@ class Account(object):
         access_key = await self.get_access_key(pk)
         await self._update_last_block_hash()
 
-        private_key = ed25519.SigningKey(pk)
-        verifying_key = private_key.get_verifying_key()
+        private_key = signing.SigningKey(pk)
+        verifying_key = private_key.verify_key
         return DelegateActionModel(
             sender_id=self.account_id,
             receiver_id=receiver_id,
             actions=actions,
             nonce=access_key.nonce + 1,
             max_block_height=self._latest_block_height + 1000,
-            public_key=base58.b58encode(verifying_key.to_bytes()).decode("utf-8"),
+            public_key=verifying_key.encode(encoder=encoding.Base58Encoder).decode("utf-8"),
         )
 
     def sign_delegate_transaction(
@@ -431,8 +426,9 @@ class Account(object):
         if public_key not in self._signer_by_pk:
             raise ValueError(f"Public key {public_key} not found in signer list")
 
-        private_key = ed25519.SigningKey(self._signer_by_pk[public_key])
-        sign = private_key.sign(nep461_hash)
+        private_key = signing.SigningKey(self._signer_by_pk[public_key])
+        signed_message = private_key.sign(nep461_hash)
+        sign = signed_message.signature
         return base58.b58encode(sign).decode("utf-8")
 
     async def get_balance(self, account_id: str = None) -> int:
