@@ -16,7 +16,7 @@ from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.phone.async_client import Phone
 from py_near.dapps.staking.async_client import Staking
-from py_near.exceptions.provider import RpcTimeoutError
+from py_near.exceptions.provider import RpcTimeoutError, InternalError
 from py_near.models import (
     TransactionResult,
     ViewFunctionResult,
@@ -148,7 +148,10 @@ class Account(object):
             except RpcTimeoutError:
                 for _ in range(constants.TIMEOUT_WAIT_RPC // 3):
                     await asyncio.sleep(3)
-                    result = await self._provider.get_tx(trx_hash, receiver_id)
+                    try:
+                        result = await self._provider.get_tx(trx_hash, receiver_id)
+                    except InternalError:
+                        continue
                     if result:
                         return result
                 raise RpcTimeoutError("Transaction not found")
