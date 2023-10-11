@@ -8,6 +8,7 @@ from typing import List, Union, Dict, Optional
 
 import base58
 import ed25519
+from loguru import logger
 from py_near_primitives import DelegateAction
 
 from py_near import constants
@@ -151,6 +152,9 @@ class Account(object):
                     try:
                         result = await self._provider.get_tx(trx_hash, receiver_id)
                     except InternalError:
+                        continue
+                    except Exception as e:
+                        logger.exception(e)
                         continue
                     if result:
                         return result
