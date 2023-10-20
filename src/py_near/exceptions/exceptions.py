@@ -157,7 +157,7 @@ class FunctionCallError(ActionErrorKind):
     error: dict
 
     def __init__(self, **kwargs):
-        super().__init__(json.dumps(kwargs))
+        super().__init__(**kwargs)
         self.error = kwargs
 
 

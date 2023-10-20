@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-near"
-version = "1.1.8"
+version = "1.1.9"
 description="Pretty simple and fully asynchronous framework for working with NEAR blockchain"
 authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
@@ -22,7 +22,7 @@ base58 = "^2.1.1"
 
 [project]
 name = "py-near"
-version = "1.1.8"
+version = "1.1.9"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchaink"
 authors = [ {name = "pvolnov", email = "petr@herewallet.app"} ]
 requires-python = ">=3.7"
