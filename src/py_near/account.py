@@ -17,7 +17,12 @@ from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.phone.async_client import Phone
 from py_near.dapps.staking.async_client import Staking
-from py_near.exceptions.provider import RpcTimeoutError, InternalError
+from py_near.exceptions.provider import (
+    RPCTimeoutError,
+    InternalError,
+    TransactionError,
+    JsonProviderError,
+)
 from py_near.models import (
     TransactionResult,
     ViewFunctionResult,
@@ -118,49 +123,40 @@ class Account(object):
         if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
         pk = await self._free_signers.get()
+        access_key = await self.get_access_key(pk)
+        await self._update_last_block_hash()
+
+        block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
+        trx_hash = transactions.calc_trx_hash(
+            self.account_id,
+            pk,
+            receiver_id,
+            access_key.nonce + 1,
+            actions,
+            block_hash,
+        )
+        serialized_tx = transactions.sign_and_serialize_transaction(
+            self.account_id,
+            pk,
+            receiver_id,
+            access_key.nonce + 1,
+            actions,
+            block_hash,
+        )
 
         try:
-            access_key = await self.get_access_key(pk)
-            await self._update_last_block_hash()
-
-            block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
-            trx_hash = transactions.calc_trx_hash(
-                self.account_id,
-                pk,
-                receiver_id,
-                access_key.nonce + 1,
-                actions,
-                block_hash,
-            )
-            serialized_tx = transactions.sign_and_serialize_transaction(
-                self.account_id,
-                pk,
-                receiver_id,
-                access_key.nonce + 1,
-                actions,
-                block_hash,
-            )
-
             if nowait:
                 return await self._provider.send_tx(serialized_tx)
-            try:
-                result = await self._provider.send_tx_and_wait(serialized_tx)
-                return TransactionResult(**result)
-            except RpcTimeoutError:
-                for _ in range(constants.TIMEOUT_WAIT_RPC // 3):
-                    await asyncio.sleep(3)
-                    try:
-                        result = await self._provider.get_tx(trx_hash, receiver_id)
-                    except InternalError:
-                        continue
-                    except Exception as e:
-                        logger.exception(e)
-                        continue
-                    if result:
-                        return result
-                raise RpcTimeoutError("Transaction not found")
+            result = await self._provider.send_tx_and_wait(
+                serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
+            )
+            return TransactionResult(**result)
 
+        except JsonProviderError as e:
+            e.trx_hash = trx_hash
+            raise e
         except Exception as e:
+            logger.exception(e)
             raise e
         finally:
             await self._free_signers.put(pk)

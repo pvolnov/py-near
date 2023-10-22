@@ -3,6 +3,7 @@ from typing import Optional
 
 
 class JsonProviderError(Exception):
+    trx_hash: Optional[str] = None
     error_json: dict
 
     def __init__(self, *args, error_json=None, **kargs):
@@ -277,7 +278,7 @@ class InvalidSignature(InvalidTxError):
     pass
 
 
-class RpcTimeoutError(TransactionError):
+class RPCTimeoutError(TransactionError):
     """
     Transaction was routed, but has not been recorded on chain in 10 seconds.
     """
@@ -329,7 +330,7 @@ ERROR_CODE_TO_EXCEPTION = {
     "NotEnoughBalance": NotEnoughBalance,
     "LackBalanceForState": LackBalanceForState,
     "RentUnpaid": RentUnpaid,
-    "RpcTimeoutError": RpcTimeoutError,
+    "RpcTimeoutError": RPCTimeoutError,
     "SignerDoesNotExist": SignerDoesNotExist,
     "TooLargeContractStateError": TooLargeContractStateError,
     "TransactionError": TransactionError,

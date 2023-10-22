@@ -1,7 +1,11 @@
+import asyncio
 import base64
+import hashlib
 import json
+from typing import Optional
 
 import aiohttp
+import base58
 from aiohttp import ClientResponseError, ClientConnectorError, ServerDisconnectedError
 from loguru import logger
 
@@ -22,7 +26,7 @@ from py_near.exceptions.provider import (
     InternalError,
     NoSyncedYetError,
     InvalidTransactionError,
-    RpcTimeoutError,
+    RPCTimeoutError,
     UnknownAccessKeyError,
     ERROR_CODE_TO_EXCEPTION,
 )
@@ -39,7 +43,7 @@ PROVIDER_CODE_TO_EXCEPTION = {
     "INTERNAL_ERROR": InternalError,
     "NOT_SYNCED_YET": NoSyncedYetError,
     "INVALID_TRANSACTION": InvalidTransactionError,
-    "TIMEOUT_ERROR": RpcTimeoutError,
+    "TIMEOUT_ERROR": RPCTimeoutError,
     "UNKNOWN_ACCESS_KEY": UnknownAccessKeyError,
 }
 
@@ -69,7 +73,7 @@ class JsonProvider(object):
                     self._rpc_addresses.insert(0, rpc_addr)
                 break
             except (
-                RpcTimeoutError,
+                RPCTimeoutError,
                 ClientResponseError,
                 ClientConnectorError,
                 ServerDisconnectedError,
@@ -121,7 +125,11 @@ class JsonProvider(object):
         return await self.json_rpc("broadcast_tx_async", [signed_tx], timeout=timeout)
 
     async def send_tx_and_wait(
-        self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC
+        self,
+        signed_tx: str,
+        timeout: int = constants.TIMEOUT_WAIT_RPC,
+        trx_hash: Optional[str] = None,
+        receiver_id: Optional[str] = None,
     ):
         """
         Send a signed transaction to the network and wait for it to be included in a block
@@ -129,11 +137,26 @@ class JsonProvider(object):
         :param timeout: rpc request timeout
         :return:
         """
-        return await self.json_rpc(
-            "broadcast_tx_commit",
-            [signed_tx],
-            timeout=timeout,
-        )
+        try:
+            return await self.json_rpc(
+                "broadcast_tx_commit",
+                [signed_tx],
+                timeout=timeout,
+            )
+        except RPCTimeoutError:
+            if receiver_id and trx_hash:
+                for _ in range(constants.TIMEOUT_WAIT_RPC // 3):
+                    await asyncio.sleep(3)
+                    try:
+                        result = await self.get_tx(trx_hash, receiver_id)
+                    except InternalError:
+                        continue
+                    except Exception as e:
+                        logger.exception(e)
+                        continue
+                    if result:
+                        return result
+            raise
 
     async def get_status(self):
         async with aiohttp.ClientSession() as session:
