@@ -150,9 +150,9 @@ class Account(object):
             result = await self._provider.send_tx_and_wait(
                 serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
             )
-            if isinstance(result, str):
-                return result
-            return TransactionResult(**result)
+            if isinstance(result, dict):
+                return TransactionResult(**result)
+            return result
 
         except JsonProviderError as e:
             e.trx_hash = trx_hash
