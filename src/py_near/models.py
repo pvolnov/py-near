@@ -264,7 +264,7 @@ class TransactionData:
 
     @property
     def url(self):
-        return f"https://explorer.near.org/transactions/{self.hash}"
+        return f"https://nearblocks.io/ru/txns/{self.hash}"
 
 
 class TransactionResult:

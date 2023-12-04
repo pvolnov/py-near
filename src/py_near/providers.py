@@ -1,19 +1,14 @@
 import asyncio
 import base64
-import hashlib
 import json
 from typing import Optional
 
 import aiohttp
-import base58
 from aiohttp import ClientResponseError, ClientConnectorError, ServerDisconnectedError
 from loguru import logger
 
-from py_near.constants import TIMEOUT_WAIT_RPC
-
-from py_near.models import TransactionResult
-
 from py_near import constants
+from py_near.constants import TIMEOUT_WAIT_RPC
 from py_near.exceptions.exceptions import RpcNotAvailableError
 from py_near.exceptions.provider import (
     UnknownBlockError,
@@ -30,7 +25,7 @@ from py_near.exceptions.provider import (
     UnknownAccessKeyError,
     ERROR_CODE_TO_EXCEPTION,
 )
-
+from py_near.models import TransactionResult
 
 PROVIDER_CODE_TO_EXCEPTION = {
     "UNKNOWN_BLOCK": UnknownBlockError,
@@ -159,12 +154,31 @@ class JsonProvider(object):
             raise
 
     async def get_status(self):
-        async with aiohttp.ClientSession() as session:
-            r = await session.get(
-                "%s/status" % self._rpc_addresses[0], timeout=TIMEOUT_WAIT_RPC
-            )
-            r.raise_for_status()
-            return json.loads(await r.text())
+        for rpc_addr in self._rpc_addresses:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    r = await session.get(
+                        "%s/status" % rpc_addr, timeout=TIMEOUT_WAIT_RPC
+                    )
+                    if r.status == 200:
+                        data = json.loads(await r.text())
+                        if not data["sync_info"][
+                            "syncing"
+                        ]:  # RPC is not in syncing process
+                            self._rpc_addresses.remove(rpc_addr)
+                            self._rpc_addresses.insert(0, rpc_addr)
+                            return data
+            except (
+                ClientResponseError,
+                ClientConnectorError,
+                ServerDisconnectedError,
+                ConnectionError,
+            ) as e:
+                logger.error(f"Rpc error: {e}")
+            except Exception as e:
+                logger.exception(e)
+
+        raise RpcNotAvailableError("RPC not available")
 
     async def get_validators(self):
         return await self.json_rpc("validators", [None])

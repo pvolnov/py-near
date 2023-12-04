@@ -1,9 +1,6 @@
 import asyncio
-import base64
 import collections
-import hashlib
 import json
-import logging
 from typing import List, Union, Dict, Optional
 
 import base58
@@ -15,12 +12,8 @@ from py_near import constants
 from py_near import transactions
 from py_near import utils
 from py_near.dapps.ft.async_client import FT
-from py_near.dapps.phone.async_client import Phone
 from py_near.dapps.staking.async_client import Staking
 from py_near.exceptions.provider import (
-    RPCTimeoutError,
-    InternalError,
-    TransactionError,
     JsonProviderError,
 )
 from py_near.models import (
@@ -454,14 +447,6 @@ class Account(object):
         if not data:
             return 0
         return int(data["amount"])
-
-    @property
-    def phone(self):
-        """
-        Get client for phone.herewallet.near
-        :return: Phone(self)
-        """
-        return Phone(self)
 
     @property
     def ft(self):

@@ -183,6 +183,20 @@ class DelegateActionExpired(ActionErrorKind):
     pass
 
 
+class DelegateActionInvalidNonce(ActionErrorKind):
+    """
+     Nonce must be greater sender[public_key].nonce
+    """
+    pass
+
+
+class DelegateActionInvalidSignature(ActionErrorKind):
+    """
+    Signature does not match the provided actions and given signer public key
+    """
+    pass
+
+
 _ERROR_TYPE_TO_EXCEPTION = {
     "AccountAlreadyExists": AccountAlreadyExistsError,
     "AccountDoesNotExist": AccountDoesNotExistError,
@@ -200,6 +214,8 @@ _ERROR_TYPE_TO_EXCEPTION = {
     "NewReceiptValidationError": NewReceiptValidationError,
     "DelegateActionExpired": DelegateActionExpired,
     "LackBalanceForState": LackBalanceForState,
+    "DelegateActionInvalidNonce": DelegateActionInvalidNonce,
+    "DelegateActionInvalidSignature": DelegateActionInvalidSignature,
 }
 
 
