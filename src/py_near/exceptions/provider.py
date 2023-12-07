@@ -119,7 +119,7 @@ class InvalidTransactionError(TransactionError):
 
 
 class TxExecutionError(InvalidTransactionError):
-    def __init__(self, data, error_json=None, **kwargs):
+    def __init__(self, data={}, error_json=None, **kwargs):
         super().__init__(error_json=error_json)
         if isinstance(data, str):
             data = json.loads(data)
