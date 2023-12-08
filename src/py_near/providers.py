@@ -6,7 +6,7 @@ from typing import Optional
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError, ServerDisconnectedError
 from loguru import logger
-
+import datetime
 from py_near import constants
 from py_near.constants import TIMEOUT_WAIT_RPC
 from py_near.exceptions.exceptions import RpcNotAvailableError
@@ -54,12 +54,12 @@ class JsonProvider(object):
         self._available_rpcs = self._rpc_addresses.copy()
         self._last_rpc_addr_check = 0
 
-    async def check_available_rpcs(self, block_id: int):
+    async def check_available_rpcs(self):
         available_rpcs = []
         for rpc_addr in self._rpc_addresses:
             try:
                 async with aiohttp.ClientSession() as session:
-                    timestamp_start = time.time()
+                    timestamp_start = datetime.datetime.utcnow().timestamp()
                     r = await session.get(
                         "%s/status" % rpc_addr, timeout=TIMEOUT_WAIT_RPC
                     )
@@ -67,7 +67,11 @@ class JsonProvider(object):
                         data = json.loads(await r.text())
                         if not data["sync_info"]["syncing"]:
                             available_rpcs.append(
-                                (rpc_addr, time.time() - timestamp_start)
+                                (
+                                    rpc_addr,
+                                    datetime.datetime.utcnow().timestamp()
+                                    - timestamp_start,
+                                )
                             )
                             continue
                     if rpc_addr in self._available_rpcs:
