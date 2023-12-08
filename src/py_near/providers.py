@@ -51,21 +51,53 @@ class JsonProvider(object):
             self._rpc_addresses = rpc_addr
         else:
             self._rpc_addresses = [rpc_addr]
+        self._available_rpcs = self._rpc_addresses.copy()
+        self._last_rpc_addr_check = 0
+
+    async def check_available_rpcs(self, block_id: int):
+        available_rpcs = []
+        for rpc_addr in self._rpc_addresses:
+            try:
+                async with aiohttp.ClientSession() as session:
+                    timestamp_start = time.time()
+                    r = await session.get(
+                        "%s/status" % rpc_addr, timeout=TIMEOUT_WAIT_RPC
+                    )
+                    if r.status == 200:
+                        data = json.loads(await r.text())
+                        if not data["sync_info"]["syncing"]:
+                            available_rpcs.append(
+                                (rpc_addr, time.time() - timestamp_start)
+                            )
+                            continue
+                    if rpc_addr in self._available_rpcs:
+                        if r.status == 200:
+                            logger.error(f"Remove async RPC : {rpc_addr}")
+                        logger.error(
+                            f"Remove rpc because of error {r.status}: {rpc_addr}"
+                        )
+            except Exception as e:
+                if rpc_addr in self._available_rpcs:
+                    logger.error(f"Remove rpc: {e}")
+                continue
+        self._available_rpcs = [
+            r[0] for r in sorted(available_rpcs, key=lambda x: x[1])
+        ]
 
     async def call_rpc_request(self, method, params, timeout=TIMEOUT_WAIT_RPC):
+        if self._last_rpc_addr_check < datetime.datetime.now().timestamp() - 30:
+            self._last_rpc_addr_check = datetime.datetime.now().timestamp()
+            asyncio.create_task(self.check_available_rpcs())
+
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         content = None
-        for rpc_addr in self._rpc_addresses:
+        for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
                     r = await session.post(rpc_addr, json=j, timeout=timeout)
                     r.raise_for_status()
                     content = json.loads(await r.text())
-                if self._rpc_addresses[0] != rpc_addr:
-                    logger.info(f"Rpc update: {rpc_addr}")
-                    self._rpc_addresses.remove(rpc_addr)
-                    self._rpc_addresses.insert(0, rpc_addr)
                 break
             except (
                 RPCTimeoutError,
@@ -154,7 +186,7 @@ class JsonProvider(object):
             raise
 
     async def get_status(self):
-        for rpc_addr in self._rpc_addresses:
+        for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
                     r = await session.get(
@@ -162,11 +194,7 @@ class JsonProvider(object):
                     )
                     if r.status == 200:
                         data = json.loads(await r.text())
-                        if not data["sync_info"][
-                            "syncing"
-                        ]:  # RPC is not in syncing process
-                            self._rpc_addresses.remove(rpc_addr)
-                            self._rpc_addresses.insert(0, rpc_addr)
+                        if not data["sync_info"]["syncing"]:
                             return data
             except (
                 ClientResponseError,
