@@ -83,7 +83,6 @@ class JsonProvider(object):
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
-                continue
         self._available_rpcs = [
             r[0] for r in sorted(available_rpcs, key=lambda x: x[1])
         ]
@@ -92,6 +91,9 @@ class JsonProvider(object):
         if self._last_rpc_addr_check < datetime.datetime.now().timestamp() - 30:
             self._last_rpc_addr_check = datetime.datetime.now().timestamp()
             asyncio.create_task(self.check_available_rpcs())
+
+        if not self._available_rpcs:
+            raise RpcNotAvailableError("No RPC available")
 
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
