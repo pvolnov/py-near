@@ -368,17 +368,22 @@ class Account(object):
         )
 
     async def view_function(
-        self, contract_id: str, method_name: str, args: dict
+        self,
+        contract_id: str,
+        method_name: str,
+        args: dict,
+        block_id: Optional[int] = None,
     ) -> ViewFunctionResult:
         """
         Call view function on smart contract. View function is read only function, it can't change state
         :param contract_id: smart contract account id
         :param method_name: method name to call
         :param args: json args to call method
+        :param block_id: execution view transaction in block with given id
         :return: result of view function call
         """
         result = await self._provider.view_call(
-            contract_id, method_name, json.dumps(args).encode("utf8")
+            contract_id, method_name, json.dumps(args).encode("utf8"), block_id=block_id
         )
         if "error" in result:
             raise ViewFunctionError(result["error"])

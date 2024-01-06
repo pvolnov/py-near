@@ -269,14 +269,17 @@ class TransactionData:
 
 class TransactionResult:
     receipt_outcome: List[ReceiptOutcome]
+    receipts: List[dict] = []
     transaction_outcome: ReceiptOutcome
     status: dict
     transaction: TransactionData
 
-    def __init__(self, receipts_outcome, transaction_outcome, transaction, status):
+    def __init__(self, receipts_outcome, transaction_outcome, transaction, status, **kargs):
         self.status = status
         self.transaction = TransactionData(**transaction)
         self.transaction_outcome = ReceiptOutcome(transaction_outcome)
+        if "receipts" in kargs:
+            self.receipts = kargs["receipts"]
 
         self.receipt_outcome = []
         for ro in receipts_outcome:

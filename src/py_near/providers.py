@@ -77,9 +77,10 @@ class JsonProvider(object):
                     if rpc_addr in self._available_rpcs:
                         if r.status == 200:
                             logger.error(f"Remove async RPC : {rpc_addr}")
-                        logger.error(
-                            f"Remove rpc because of error {r.status}: {rpc_addr}"
-                        )
+                        else:
+                            logger.error(
+                                f"Remove rpc because of error {r.status}: {rpc_addr}"
+                            )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
@@ -88,10 +89,18 @@ class JsonProvider(object):
         ]
 
     async def call_rpc_request(self, method, params, timeout=TIMEOUT_WAIT_RPC):
-        if self._last_rpc_addr_check < datetime.datetime.now().timestamp() - 30:
+        if (
+            self._last_rpc_addr_check < datetime.datetime.now().timestamp() - 30
+            or not self._available_rpcs
+        ):
             self._last_rpc_addr_check = datetime.datetime.now().timestamp()
             asyncio.create_task(self.check_available_rpcs())
 
+        for _ in range(5):
+            if self._available_rpcs:
+                break
+            await self.check_available_rpcs()
+            await asyncio.sleep(3)
         if not self._available_rpcs:
             raise RpcNotAvailableError("No RPC available")
 
@@ -258,17 +267,25 @@ class JsonProvider(object):
             },
         )
 
-    async def view_call(self, account_id, method_name, args, finality="optimistic"):
-        return await self.json_rpc(
-            "query",
-            {
-                "request_type": "call_function",
-                "account_id": account_id,
-                "method_name": method_name,
-                "args_base64": base64.b64encode(args).decode("utf8"),
-                "finality": finality,
-            },
-        )
+    async def view_call(
+        self,
+        account_id,
+        method_name,
+        args,
+        finality="optimistic",
+        block_id: Optional[int] = None,
+    ):
+        body = {
+            "request_type": "call_function",
+            "account_id": account_id,
+            "method_name": method_name,
+            "args_base64": base64.b64encode(args).decode("utf8"),
+        }
+        if block_id:
+            body["block_id"] = block_id
+        else:
+            body["finality"] = finality
+        return await self.json_rpc("query", body)
 
     async def get_block(self, block_id):
         return await self.json_rpc("block", [block_id])
@@ -279,6 +296,11 @@ class JsonProvider(object):
     async def get_tx(self, tx_hash, tx_recipient_id) -> TransactionResult:
         return TransactionResult(
             **await self.json_rpc("tx", [tx_hash, tx_recipient_id])
+        )
+
+    async def get_tx_status(self, tx_hash, tx_recipient_id) -> TransactionResult:
+        return TransactionResult(
+            **await self.json_rpc("EXPERIMENTAL_tx_status", [tx_hash, tx_recipient_id])
         )
 
     async def get_changes_in_block(self, changes_in_block_request):
