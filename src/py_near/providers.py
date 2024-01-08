@@ -70,9 +70,8 @@ class JsonProvider(object):
                                 data["sync_info"]["latest_block_time"]
                             )
                             is_syncing = (
-                                last_block_ts
-                                < datetime.datetime.utcnow()
-                                - datetime.timedelta(minutes=1)
+                                last_block_ts.timestamp()
+                                < datetime.datetime.utcnow().timestamp() - 60
                             )
                         else:
                             is_syncing = False
