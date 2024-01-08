@@ -65,7 +65,18 @@ class JsonProvider(object):
                     )
                     if r.status == 200:
                         data = json.loads(await r.text())
-                        if not data["sync_info"]["syncing"]:
+                        if data["sync_info"]["syncing"]:
+                            last_block_ts = datetime.datetime.fromisoformat(
+                                data["sync_info"]["latest_block_time"]
+                            )
+                            is_syncing = (
+                                last_block_ts
+                                < datetime.datetime.utcnow()
+                                - datetime.timedelta(minutes=1)
+                            )
+                        else:
+                            is_syncing = False
+                        if not is_syncing:
                             available_rpcs.append(
                                 (
                                     rpc_addr,
@@ -217,7 +228,7 @@ class JsonProvider(object):
                 ServerDisconnectedError,
                 ConnectionError,
             ) as e:
-                logger.error(f"Rpc error: {e}")
+                logger.error(f"Rpc get status error: {e}")
             except Exception as e:
                 logger.exception(e)
 
