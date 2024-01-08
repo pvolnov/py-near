@@ -69,28 +69,27 @@ class JsonProvider(object):
                             last_block_ts = datetime.datetime.fromisoformat(
                                 data["sync_info"]["latest_block_time"]
                             )
-                            is_syncing = (
-                                last_block_ts.timestamp()
-                                < datetime.datetime.utcnow().timestamp() - 60
+                            diff = (
+                                datetime.datetime.utcnow().timestamp()
+                                - last_block_ts.timestamp()
                             )
+                            is_syncing = diff > 60
                         else:
                             is_syncing = False
-                        if not is_syncing:
-                            available_rpcs.append(
-                                (
-                                    rpc_addr,
-                                    datetime.datetime.utcnow().timestamp()
-                                    - timestamp_start,
-                                )
-                            )
+                        if is_syncing:
+                            logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
                             continue
-                    if rpc_addr in self._available_rpcs:
-                        if r.status == 200:
-                            logger.error(f"Remove async RPC : {rpc_addr}")
-                        else:
-                            logger.error(
-                                f"Remove rpc because of error {r.status}: {rpc_addr}"
+                        available_rpcs.append(
+                            (
+                                rpc_addr,
+                                datetime.datetime.utcnow().timestamp()
+                                - timestamp_start,
                             )
+                        )
+                    else:
+                        logger.error(
+                            f"Remove rpc because of error {r.status}: {rpc_addr}"
+                        )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
