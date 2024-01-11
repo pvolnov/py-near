@@ -183,6 +183,8 @@ class ReceiptAction:
     # Transaction
     deposit: Optional[str] = None
     gas: Optional[str] = field(default=None)
+    # DeployContract
+    code: Optional[str] = field(default=None)
     # FunctionCall
     method_name: Optional[str] = field(default=None)
     args: Any = field(default=None)

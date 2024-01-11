@@ -8,6 +8,10 @@ class RpcNotAvailableError(Exception):
     pass
 
 
+class RpcEmptyResponse(Exception):
+    pass
+
+
 class ActionErrorKind(Exception):
     def __init__(self, **kargs):
         for arg, value in kargs.items():
@@ -185,8 +189,9 @@ class DelegateActionExpired(ActionErrorKind):
 
 class DelegateActionInvalidNonce(ActionErrorKind):
     """
-     Nonce must be greater sender[public_key].nonce
+    Nonce must be greater sender[public_key].nonce
     """
+
     pass
 
 
@@ -194,6 +199,7 @@ class DelegateActionInvalidSignature(ActionErrorKind):
     """
     Signature does not match the provided actions and given signer public key
     """
+
     pass
 
 
