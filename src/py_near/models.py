@@ -6,7 +6,8 @@ from json import JSONDecodeError
 from typing import List, Any, Optional, Union
 
 import base58
-from py_near_primitives import (
+import py_near_primitives
+from py_near_primitives.py_near_primitives import (
     DelegateAction,
     TransferAction,
     DeleteAccountAction,
@@ -17,6 +18,10 @@ from py_near_primitives import (
     DeleteKeyAction,
     AddKeyAction,
     StakeAction,
+)
+from py_near_primitives.py_near_primitives import (
+    FunctionCallPermission,
+    AccessKeyPermissionFieldless,
 )
 
 from py_near.exceptions.exceptions import parse_error
@@ -176,6 +181,44 @@ class DelegateActionModel:
     def bytes_to_json(data: bytes) -> dict:
         return json.loads(DelegateAction.bytes_to_json(data))
 
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "DelegateActionModel":
+        data = cls.bytes_to_json(data)
+        actions = [ReceiptAction.build(action) for action in data.pop("actions")]
+        raw_actions = []
+        for act in actions:
+            if act.transactions_type == ActionType.FUNCTION_CALL:
+                raw_actions.append(
+                    FunctionCallAction(
+                        act.method_name,
+                        base64.b64decode(act.args_raw),
+                        int(act.gas),
+                        int(act.deposit),
+                    )
+                )
+            elif act.transactions_type == ActionType.ADD_KEY:
+                if (
+                    act.access_key.permission_type
+                    == PublicKeyPermissionType.FUNCTION_CALL
+                ):
+                    ak = py_near_primitives.py_near_primitives.AccessKey(
+                        act.access_key.nonce,
+                        FunctionCallPermission(
+                            act.access_key.receiver_id,
+                            act.access_key.method_names,
+                            act.access_key.allowance,
+                        ),
+                    )
+                else:
+                    ak = AccessKey(
+                        act.access_key.nonce, AccessKeyPermissionFieldless.FullAccess
+                    )
+                bpk = base58.b58decode(act.public_key.split(":")[1])
+                raw_actions.append(AddKeyAction(bpk, ak))
+            else:
+                raise Exception("Undelegeted action type")
+        return cls(**data, actions=raw_actions)
+
 
 @dataclass
 class ReceiptAction:
@@ -188,6 +231,7 @@ class ReceiptAction:
     # FunctionCall
     method_name: Optional[str] = field(default=None)
     args: Any = field(default=None)
+    args_raw: Any = field(default=None)
     # DeleteAccount
     beneficiary_id: Optional[str] = field(default=None)
     # AddKey
@@ -206,10 +250,11 @@ class ReceiptAction:
 
         action_type, action_data = list(data.items())[0]
         access_key = None
-        args = ""
+        args = args_raw = None
         if action_type == ActionType.ADD_KEY:
             access_key = AccessKey.build(action_data["access_key"])
         elif action_type == ActionType.FUNCTION_CALL:
+            args_raw = action_data["args"]
             try:
                 args = base64.b64decode(action_data["args"])
                 args = json.loads(args)
@@ -232,6 +277,7 @@ class ReceiptAction:
             transactions_type=action_type,
             access_key=access_key,
             args=args,
+            args_raw=args_raw,
             **action_data,
         )
 
@@ -276,7 +322,9 @@ class TransactionResult:
     status: dict
     transaction: TransactionData
 
-    def __init__(self, receipts_outcome, transaction_outcome, transaction, status, **kargs):
+    def __init__(
+        self, receipts_outcome, transaction_outcome, transaction, status, **kargs
+    ):
         self.status = status
         self.transaction = TransactionData(**transaction)
         self.transaction_outcome = ReceiptOutcome(transaction_outcome)

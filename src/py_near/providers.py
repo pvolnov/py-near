@@ -166,13 +166,27 @@ class JsonProvider(object):
         """
         return await self.json_rpc("broadcast_tx_async", [signed_tx], timeout=timeout)
 
+    async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
+        for _ in range(6):
+            await asyncio.sleep(5)
+            try:
+                result = await self.get_tx(trx_hash, receiver_id)
+            except InternalError:
+                continue
+            except Exception as e:
+                logger.exception(e)
+                continue
+            if result:
+                return result
+        raise RPCTimeoutError("Transaction not found")
+
     async def send_tx_and_wait(
         self,
         signed_tx: str,
         timeout: int = constants.TIMEOUT_WAIT_RPC,
         trx_hash: Optional[str] = None,
         receiver_id: Optional[str] = None,
-    ):
+    ) -> TransactionResult:
         """
         Send a signed transaction to the network and wait for it to be included in a block
         :param signed_tx: base64 encoded signed transaction, str
@@ -180,25 +194,15 @@ class JsonProvider(object):
         :return:
         """
         try:
-            return await self.json_rpc(
+            res = await self.json_rpc(
                 "broadcast_tx_commit",
                 [signed_tx],
                 timeout=timeout,
             )
+            return TransactionResult(**res)
         except RPCTimeoutError:
             if receiver_id and trx_hash:
-                for _ in range(constants.TIMEOUT_WAIT_RPC // 3):
-                    await asyncio.sleep(3)
-                    try:
-                        result = await self.get_tx(trx_hash, receiver_id)
-                    except InternalError:
-                        continue
-                    except Exception as e:
-                        logger.exception(e)
-                        continue
-                    if result:
-                        return result
-            raise
+                return await self.wait_for_trx(trx_hash, receiver_id)
 
     async def get_status(self):
         await self.check_available_rpcs()
@@ -206,7 +210,7 @@ class JsonProvider(object):
             try:
                 async with aiohttp.ClientSession() as session:
                     r = await session.get(
-                        "%s/status" % rpc_addr, timeout=TIMEOUT_WAIT_RPC
+                        f"{rpc_addr}/status", timeout=TIMEOUT_WAIT_RPC
                     )
                     if r.status == 200:
                         return json.loads(await r.text())
@@ -218,7 +222,7 @@ class JsonProvider(object):
             ) as e:
                 logger.error(f"Rpc get status error: {e}")
             except Exception as e:
-                logger.exception(e)
+                logger.error(e)
 
         raise RpcNotAvailableError("RPC not available")
 

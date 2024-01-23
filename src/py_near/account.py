@@ -115,9 +115,10 @@ class Account(object):
         """
         if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
+        await self._update_last_block_hash()
+
         pk = await self._free_signers.get()
         access_key = await self.get_access_key(pk)
-        await self._update_last_block_hash()
 
         block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
         trx_hash = transactions.calc_trx_hash(
@@ -140,20 +141,11 @@ class Account(object):
         try:
             if nowait:
                 return await self._provider.send_tx(serialized_tx)
-            result = await self._provider.send_tx_and_wait(
+            return await self._provider.send_tx_and_wait(
                 serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
             )
-            if isinstance(result, TransactionResult):
-                return result
-            if isinstance(result, dict):
-                return TransactionResult(**result)
-            return result
-
         except JsonProviderError as e:
             e.trx_hash = trx_hash
-            raise e
-        except Exception as e:
-            logger.exception(e)
             raise e
         finally:
             await self._free_signers.put(pk)
@@ -430,7 +422,7 @@ class Account(object):
         nep461_hash = bytes(bytearray(delegate_action.get_nep461_hash()))
 
         public_key = base58.b58encode(
-            bytes(bytearray(delegate_action.public_key))
+            bytes(bytearray(delegate_action.public_key))  # noqa
         ).decode("utf-8")
 
         if public_key not in self._signer_by_pk:
