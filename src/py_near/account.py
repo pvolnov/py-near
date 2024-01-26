@@ -117,6 +117,12 @@ class Account(object):
             raise ValueError("You must provide a private key or seed to call methods")
         await self._update_last_block_hash()
 
+        while True:
+            if self._free_signers.empty():
+                logger.info("Free signer not found")
+                await asyncio.sleep(0.1)
+                continue
+            break
         pk = await self._free_signers.get()
         access_key = await self.get_access_key(pk)
 
@@ -146,7 +152,7 @@ class Account(object):
             )
         except JsonProviderError as e:
             e.trx_hash = trx_hash
-            raise e
+            raise
         finally:
             await self._free_signers.put(pk)
 
