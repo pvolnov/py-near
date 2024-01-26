@@ -120,7 +120,7 @@ class Account(object):
         while True:
             if self._free_signers.empty():
                 logger.info("Free signer not found")
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.5)
                 continue
             break
         pk = await self._free_signers.get()
