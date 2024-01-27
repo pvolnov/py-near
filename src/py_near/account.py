@@ -69,7 +69,11 @@ class Account(object):
 
         for pk in private_keys:
             if isinstance(pk, str):
-                pk = base58.b58decode(pk.replace("ed25519:", ""))
+                try:
+                    pk = base58.b58decode(pk.replace("ed25519:", ""))
+                except UnicodeEncodeError:
+                    logger.error(f"Can't decode private key {pk[:10]}")
+                    continue
             private_key = ed25519.SigningKey(pk)
             public_key = base58.b58encode(
                 private_key.get_verifying_key().to_bytes()
