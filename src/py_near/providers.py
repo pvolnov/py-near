@@ -84,7 +84,7 @@ class JsonProvider(object):
                 async with aiohttp.ClientSession() as session:
                     async with session.post(rpc_addr, json=data) as r:
                         if r.status == 200:
-                            data = json.loads(await r.text())
+                            data = json.loads(await r.text())['result']
                             if data["sync_info"]["syncing"]:
                                 last_block_ts = datetime.datetime.fromisoformat(
                                     data["sync_info"]["latest_block_time"]
@@ -221,7 +221,7 @@ class JsonProvider(object):
                 async with aiohttp.ClientSession() as session:
                     async with session.post(rpc_addr, json=data) as r:
                         if r.status == 200:
-                            return json.loads(await r.text())
+                            return json.loads(await r.text())['result']
             except (
                 ClientResponseError,
                 ClientConnectorError,
