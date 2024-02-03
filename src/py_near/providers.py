@@ -75,31 +75,35 @@ class JsonProvider(object):
         available_rpcs = []
         for rpc_addr in self._rpc_addresses:
             try:
+                data = {
+                    "jsonrpc": "2.0",
+                    "method": "status",
+                    "params": {"finality": "final"},
+                    "id": 1,
+                }
                 async with aiohttp.ClientSession() as session:
-                    r = await session.get(
-                        "%s/status" % rpc_addr, timeout=TIMEOUT_WAIT_RPC
-                    )
-                    if r.status == 200:
-                        data = json.loads(await r.text())
-                        if data["sync_info"]["syncing"]:
-                            last_block_ts = datetime.datetime.fromisoformat(
-                                data["sync_info"]["latest_block_time"]
-                            )
-                            diff = (
-                                datetime.datetime.utcnow().timestamp()
-                                - last_block_ts.timestamp()
-                            )
-                            is_syncing = diff > 60
+                    async with session.post(rpc_addr, json=data) as r:
+                        if r.status == 200:
+                            data = json.loads(await r.text())
+                            if data["sync_info"]["syncing"]:
+                                last_block_ts = datetime.datetime.fromisoformat(
+                                    data["sync_info"]["latest_block_time"]
+                                )
+                                diff = (
+                                    datetime.datetime.utcnow().timestamp()
+                                    - last_block_ts.timestamp()
+                                )
+                                is_syncing = diff > 60
+                            else:
+                                is_syncing = False
+                            if is_syncing:
+                                logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
+                                continue
+                            available_rpcs.append(rpc_addr)
                         else:
-                            is_syncing = False
-                        if is_syncing:
-                            logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
-                            continue
-                        available_rpcs.append(rpc_addr)
-                    else:
-                        logger.error(
-                            f"Remove rpc because of error {r.status}: {rpc_addr}"
-                        )
+                            logger.error(
+                                f"Remove rpc because of error {r.status}: {rpc_addr}"
+                            )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
@@ -208,12 +212,16 @@ class JsonProvider(object):
         await self.check_available_rpcs()
         for rpc_addr in self._available_rpcs:
             try:
+                data = {
+                    "jsonrpc": "2.0",
+                    "method": "status",
+                    "params": {"finality": "final"},
+                    "id": 1,
+                }
                 async with aiohttp.ClientSession() as session:
-                    r = await session.get(
-                        f"{rpc_addr}/status", timeout=TIMEOUT_WAIT_RPC
-                    )
-                    if r.status == 200:
-                        return json.loads(await r.text())
+                    async with session.post(rpc_addr, json=data) as r:
+                        if r.status == 200:
+                            return json.loads(await r.text())
             except (
                 ClientResponseError,
                 ClientConnectorError,

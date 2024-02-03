@@ -157,6 +157,9 @@ class Account(object):
         except JsonProviderError as e:
             e.trx_hash = trx_hash
             raise
+        except Exception as e:
+            e.trx_hash = trx_hash
+            raise
         finally:
             await self._free_signers.put(pk)
 
