@@ -42,6 +42,7 @@ class Account(object):
     _latest_block_hash: str
     _latest_block_hash_ts: float = 0
     _latest_block_height: int = 0
+    _access_key_nonce: dict = collections.defaultdict(int)
     chain_id: str = "mainnet"
 
     def __init__(
@@ -128,14 +129,17 @@ class Account(object):
                 continue
             break
         pk = await self._free_signers.get()
-        access_key = await self.get_access_key(pk)
+        if self._access_key_nonce[pk] == 0:
+            access_key = await self.get_access_key(pk)
+            self._access_key_nonce[pk] = access_key.nonce
+        self._access_key_nonce[pk] += 1
 
         block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
         trx_hash = transactions.calc_trx_hash(
             self.account_id,
             pk,
             receiver_id,
-            access_key.nonce + 1,
+            self._access_key_nonce[pk],
             actions,
             block_hash,
         )
@@ -143,7 +147,7 @@ class Account(object):
             self.account_id,
             pk,
             receiver_id,
-            access_key.nonce + 1,
+            self._access_key_nonce[pk],
             actions,
             block_hash,
         )
