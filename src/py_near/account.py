@@ -122,13 +122,9 @@ class Account(object):
             raise ValueError("You must provide a private key or seed to call methods")
         await self._update_last_block_hash()
 
-        while True:
-            if self._free_signers.empty():
-                logger.info("Free signer not found")
-                await asyncio.sleep(0.5)
-                continue
-            break
         pk = await self._free_signers.get()
+        await self._free_signers.put(pk)
+
         if self._access_key_nonce[pk] == 0:
             access_key = await self.get_access_key(pk)
             self._access_key_nonce[pk] = access_key.nonce
