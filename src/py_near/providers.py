@@ -144,7 +144,7 @@ class JsonProvider(object):
                     return error
                 if len(body) == 1 and list(body.keys())[0] in ERROR_CODE_TO_EXCEPTION:
                     key, body = list(body.items())[0]
-                    if isinstance(body, str):
+                    if body in ERROR_CODE_TO_EXCEPTION:
                         key = body
                         body = {}
                     if key in ERROR_CODE_TO_EXCEPTION:
