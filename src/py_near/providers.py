@@ -84,7 +84,7 @@ class JsonProvider(object):
                 async with aiohttp.ClientSession() as session:
                     async with session.post(rpc_addr, json=data) as r:
                         if r.status == 200:
-                            data = json.loads(await r.text())['result']
+                            data = json.loads(await r.text())["result"]
                             if data["sync_info"]["syncing"]:
                                 last_block_ts = datetime.datetime.fromisoformat(
                                     data["sync_info"]["latest_block_time"]
@@ -116,7 +116,12 @@ class JsonProvider(object):
         for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
-                    r = await session.post(rpc_addr, json=j, timeout=timeout)
+                    r = await session.post(
+                        rpc_addr,
+                        json=j,
+                        timeout=timeout,
+                        headers={"Referer": "https://tgapp.herewallet.app/"},  # NEAR RPC requires Referer header
+                    )
                     r.raise_for_status()
                     return json.loads(await r.text())
             except (
@@ -221,7 +226,7 @@ class JsonProvider(object):
                 async with aiohttp.ClientSession() as session:
                     async with session.post(rpc_addr, json=data) as r:
                         if r.status == 200:
-                            return json.loads(await r.text())['result']
+                            return json.loads(await r.text())["result"]
             except (
                 ClientResponseError,
                 ClientConnectorError,
