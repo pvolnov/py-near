@@ -4,7 +4,7 @@ import json
 from typing import List, Union, Dict, Optional
 
 import base58
-import ed25519
+from nacl import signing, encoding
 from loguru import logger
 from py_near_primitives import DelegateAction
 
@@ -75,10 +75,8 @@ class Account(object):
                 except UnicodeEncodeError:
                     logger.error(f"Can't decode private key {pk[:10]}")
                     continue
-            private_key = ed25519.SigningKey(pk)
-            public_key = base58.b58encode(
-                private_key.get_verifying_key().to_bytes()
-            ).decode("utf-8")
+            private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
+            public_key = private_key.verify_key
             self._signer_by_pk[public_key] = pk
             self._free_signers.put_nowait(pk)
             self._signers.append(pk)
@@ -181,11 +179,12 @@ class Account(object):
         if pk is None:
             pk = self._signers[0]
 
-        private_key = ed25519.SigningKey(pk)
-        public_key = private_key.get_verifying_key()
+        private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
+        public_key = private_key.verify_key
+        public_key.to_curve25519_public_key()
 
         resp = await self._provider.get_access_key(
-            self.account_id, base58.b58encode(public_key.to_bytes()).decode("utf8")
+            self.account_id, base58.b58encode(public_key.encode()).decode("utf8")
         )
         if "error" in resp:
             raise ValueError(resp["error"])
@@ -411,8 +410,8 @@ class Account(object):
         access_key = await self.get_access_key(pk)
         await self._update_last_block_hash()
 
-        private_key = ed25519.SigningKey(pk)
-        verifying_key = private_key.get_verifying_key()
+        private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
+        verifying_key = private_key.verify_key
         return DelegateActionModel(
             sender_id=self.account_id,
             receiver_id=receiver_id,
@@ -441,7 +440,7 @@ class Account(object):
         if public_key not in self._signer_by_pk:
             raise ValueError(f"Public key {public_key} not found in signer list")
 
-        private_key = ed25519.SigningKey(self._signer_by_pk[public_key])
+        private_key = signing.SigningKey(self._signer_by_pk[public_key], encoder=encoding.RawEncoder)
         sign = private_key.sign(nep461_hash)
         return base58.b58encode(sign).decode("utf-8")
 
