@@ -147,10 +147,9 @@ class JsonProvider(object):
                     if isinstance(body, str) and body in ERROR_CODE_TO_EXCEPTION:
                         key = body
                         body = {}
-                    if key in ERROR_CODE_TO_EXCEPTION:
-                        error = ERROR_CODE_TO_EXCEPTION[key](
-                            body, error_json=content["error"]
-                        )
+                    error = ERROR_CODE_TO_EXCEPTION[key](
+                        body, error_json=content["error"]
+                    )
                 else:
                     break
             return error
