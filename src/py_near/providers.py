@@ -44,7 +44,11 @@ PROVIDER_CODE_TO_EXCEPTION = {
 
 
 class JsonProvider(object):
-    def __init__(self, rpc_addr):
+    def __init__(self, rpc_addr, allow_broadcast=True):
+        """
+        :param rpc_addr: str or list of str
+        :param allow_broadcast: bool - submit signed transaction to all RPCs
+        """
         if isinstance(rpc_addr, tuple):
             self._rpc_addresses = ["http://{}:{}".format(*rpc_addr)]
         elif isinstance(rpc_addr, list):
@@ -53,6 +57,7 @@ class JsonProvider(object):
             self._rpc_addresses = [rpc_addr]
         self._available_rpcs = self._rpc_addresses.copy()
         self._last_rpc_addr_check = 0
+        self.allow_broadcast = allow_broadcast
 
     async def check_available_rpcs(self):
         if (
@@ -109,10 +114,12 @@ class JsonProvider(object):
                     logger.error(f"Remove rpc: {e}")
         self._available_rpcs = available_rpcs
 
-    async def call_rpc_request(self, method, params, timeout=TIMEOUT_WAIT_RPC):
+    async def call_rpc_request(
+        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False
+    ):
         await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
-
+        res = {}
         for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
@@ -120,10 +127,14 @@ class JsonProvider(object):
                         rpc_addr,
                         json=j,
                         timeout=timeout,
-                        headers={"Referer": "https://tgapp.herewallet.app/"},  # NEAR RPC requires Referer header
+                        headers={
+                            "Referer": "https://tgapp.herewallet.app/"
+                        },  # NEAR RPC requires Referer header
                     )
                     r.raise_for_status()
-                    return json.loads(await r.text())
+                    res = json.loads(await r.text())
+                    if not broadcast:
+                        return res
             except (
                 RPCTimeoutError,
                 ClientResponseError,
@@ -133,6 +144,7 @@ class JsonProvider(object):
             ) as e:
                 logger.error(f"Rpc error: {e}")
                 continue
+        return res
 
     @staticmethod
     def get_error_from_response(content: dict):
@@ -156,8 +168,10 @@ class JsonProvider(object):
                     break
             return error
 
-    async def json_rpc(self, method, params, timeout=TIMEOUT_WAIT_RPC):
-        content = await self.call_rpc_request(method, params, timeout)
+    async def json_rpc(self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False):
+        content = await self.call_rpc_request(
+            method, params, timeout, broadcast=broadcast
+        )
         if not content:
             raise RpcEmptyResponse("RPC returned empty response")
 
@@ -173,7 +187,12 @@ class JsonProvider(object):
         :param timeout: rpc request timeout
         :return:
         """
-        return await self.json_rpc("broadcast_tx_async", [signed_tx], timeout=timeout)
+        return await self.json_rpc(
+            "broadcast_tx_async",
+            [signed_tx],
+            timeout=timeout,
+            broadcast=self.allow_broadcast,
+        )
 
     async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
         for _ in range(6):
@@ -207,6 +226,7 @@ class JsonProvider(object):
                 "broadcast_tx_commit",
                 [signed_tx],
                 timeout=timeout,
+                broadcast=self.allow_broadcast,
             )
             return TransactionResult(**res)
         except RPCTimeoutError:
