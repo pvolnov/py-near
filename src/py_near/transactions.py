@@ -1,8 +1,7 @@
 import base64
 from typing import Union, List
-
+from nacl import signing, encoding
 import base58
-import ed25519
 from py_near_primitives import (
     CreateAccountAction,
     AddKeyAction,
@@ -34,11 +33,11 @@ def sign_and_serialize_transaction(
         pk = base58.b58decode(private_key.replace("ed25519:", ""))
     else:
         pk = private_key
-    private_key = ed25519.SigningKey(pk)
+    private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
 
     transaction = Transaction(
         account_id,
-        private_key.get_verifying_key().to_bytes(),
+        private_key.verify_key.encode(),
         nonce,
         receiver_id,
         block_hash,
@@ -61,11 +60,11 @@ def calc_trx_hash(
         pk = base58.b58decode(private_key.replace("ed25519:", ""))
     else:
         pk = private_key
-    private_key = ed25519.SigningKey(pk)
+    private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
 
     transaction = Transaction(
         account_id,
-        private_key.get_verifying_key().to_bytes(),
+        private_key.verify_key.encode(),
         nonce,
         receiver_id,
         block_hash,
