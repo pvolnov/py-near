@@ -55,3 +55,10 @@ repository = "https://github.com/pvolnov/py-near"
 changelog = "https://github.com/pvolnov/py-near/blob/main/CHANGELOG.md"
 funding = "https://opencollective.com/py-near"
 twitter = "https://twitter.com/p_volnov"
+
+[tool.pytest.ini_options]
+addopts = "--capture=no --tb=native"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
