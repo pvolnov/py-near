@@ -6,13 +6,14 @@ authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = ">=3.8,<3.12"
 ed25519 = "^1.5"
 aiohttp = "^3.7.4"
 py-near-primitives = "^0.2.3"
 loguru = "^0.7.2"
 base58 = "^2.1.1"
 pydantic = "^2.6.1"
+frozenlist = "^1.4.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^21.12b0"
