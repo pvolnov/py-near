@@ -237,7 +237,7 @@ class Account(object):
         gas: int = constants.DEFAULT_ATTACHED_GAS,
         amount: int = 0,
         nowait: bool = False,
-        included=False
+        included=False,
     ):
         """
         Call function on smart contract
@@ -259,7 +259,7 @@ class Account(object):
                 )
             ],
             nowait,
-            included
+            included,
         )
 
     async def create_account(
@@ -342,6 +342,7 @@ class Account(object):
         delegate_action: Union[DelegateAction, DelegateActionModel],
         signature: Union[bytes, str],
         nowait=False,
+        included=False,
     ):
         if isinstance(signature, str):
             signature = base58.b58decode(signature.replace("ed25519:", ""))
@@ -351,7 +352,9 @@ class Account(object):
         actions = [
             transactions.create_signed_delegate(delegate_action, signature),
         ]
-        return await self.sign_and_submit_tx(delegate_action.sender_id, actions, nowait)
+        return await self.sign_and_submit_tx(
+            delegate_action.sender_id, actions, nowait, included
+        )
 
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
