@@ -23,7 +23,7 @@ from py_near.exceptions.provider import (
     InvalidTransactionError,
     RPCTimeoutError,
     UnknownAccessKeyError,
-    ERROR_CODE_TO_EXCEPTION,
+    ERROR_CODE_TO_EXCEPTION, InvalidNonce,
 )
 from py_near.models import TransactionResult
 
@@ -134,7 +134,6 @@ class JsonProvider(object):
                     r.raise_for_status()
                     res = json.loads(await r.text())
                     return res
-
             tasks = [
                 asyncio.create_task(f(rpc_addr)) for rpc_addr in self._available_rpcs
             ]
@@ -227,12 +226,19 @@ class JsonProvider(object):
         :param timeout: rpc request timeout
         :return:
         """
-        return await self.json_rpc(
-            "send_tx",
-            {"signed_tx_base64": signed_tx, "wait_until": "INCLUDED_FINAL"},
-            timeout=timeout,
-            broadcast=self.allow_broadcast,
-        )
+        try:
+            return await self.json_rpc(
+                "send_tx",
+                {"signed_tx_base64": signed_tx, "wait_until": "INCLUDED"},
+                timeout=timeout,
+                broadcast=self.allow_broadcast,
+            )
+        except InvalidNonce:
+            logger.warning("Invalid nonce during broadcast included transaction")
+            return None
+        except RPCTimeoutError:
+            raise RPCTimeoutError("Transaction not included")
+
 
     async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
         for _ in range(6):
