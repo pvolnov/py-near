@@ -120,6 +120,31 @@ class JsonProvider(object):
         await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
         res = {}
+        if broadcast:
+            async def f(rpc_call_addr):
+                async with aiohttp.ClientSession() as session:
+                    r = await session.post(
+                        rpc_call_addr,
+                        json=j,
+                        timeout=timeout,
+                        headers={
+                            "Referer": "https://tgapp.herewallet.app/"
+                        },  # NEAR RPC requires Referer header
+                    )
+                    r.raise_for_status()
+                    res = json.loads(await r.text())
+                    return res
+
+            tasks = [
+                asyncio.create_task(f(rpc_addr)) for rpc_addr in self._available_rpcs
+            ]
+            for t in tasks:
+                try:
+                    res = await t
+                    return res
+                except Exception as e:
+                    logger.error(f"Rpc error: {e}")
+                    continue
         for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
@@ -133,8 +158,7 @@ class JsonProvider(object):
                     )
                     r.raise_for_status()
                     res = json.loads(await r.text())
-                    if not broadcast:
-                        return res
+                    return res
             except (
                 RPCTimeoutError,
                 ClientResponseError,
