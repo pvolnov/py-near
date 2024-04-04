@@ -108,7 +108,7 @@ class Account(object):
         self._latest_block_hash_ts = utils.timestamp()
 
     async def sign_and_submit_tx(
-        self, receiver_id, actions: List[Action], nowait=False
+        self, receiver_id, actions: List[Action], nowait=False, included=False
     ) -> Union[TransactionResult, str]:
         """
         Sign transaction and send it to blockchain
@@ -116,6 +116,7 @@ class Account(object):
         :param actions: list of actions
         :param nowait: if nowait is True, return transaction hash, else wait execution
         confirm and return TransactionResult
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         if not self._signers:
@@ -149,7 +150,10 @@ class Account(object):
         )
 
         try:
-            if nowait:
+            if included:
+                await self._provider.send_tx_included(serialized_tx)
+                return trx_hash
+            elif nowait:
                 return await self._provider.send_tx(serialized_tx)
             return await self._provider.send_tx_and_wait(
                 serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
@@ -211,17 +215,18 @@ class Account(object):
         return await self._provider.get_account(self.account_id)
 
     async def send_money(
-        self, account_id: str, amount: int, nowait: bool = False
+        self, account_id: str, amount: int, nowait: bool = False, included=False
     ) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
         :param amount: amount in yoctoNEAR
         :param nowait: if nowait is True, return transaction hash, else wait execution
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         return await self.sign_and_submit_tx(
-            account_id, [transactions.create_transfer_action(amount)], nowait
+            account_id, [transactions.create_transfer_action(amount)], nowait, included
         )
 
     async def function_call(
@@ -232,6 +237,7 @@ class Account(object):
         gas: int = constants.DEFAULT_ATTACHED_GAS,
         amount: int = 0,
         nowait: bool = False,
+        included=False
     ):
         """
         Call function on smart contract
@@ -241,6 +247,7 @@ class Account(object):
         :param gas: amount of attachment gas. Default is 200000000000000
         :param amount: amount of attachment NEAR, Default is 0
         :param nowait: if nowait is True, return transaction hash, else wait execution
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         ser_args = json.dumps(args).encode("utf8")
@@ -252,6 +259,7 @@ class Account(object):
                 )
             ],
             nowait,
+            included
         )
 
     async def create_account(

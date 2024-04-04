@@ -194,6 +194,22 @@ class JsonProvider(object):
             broadcast=self.allow_broadcast,
         )
 
+    async def send_tx_included(
+        self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC
+    ):
+        """
+        Send a signed transaction to the network and return the hash of the transaction
+        :param signed_tx: base64 encoded signed transaction, str.
+        :param timeout: rpc request timeout
+        :return:
+        """
+        return await self.json_rpc(
+            "send_tx",
+            {"signed_tx_base64": signed_tx, "wait_until": "INCLUDED_FINAL"},
+            timeout=timeout,
+            broadcast=self.allow_broadcast,
+        )
+
     async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
         for _ in range(6):
             await asyncio.sleep(5)
