@@ -14,7 +14,7 @@ from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.staking.async_client import Staking
 from py_near.exceptions.provider import (
-    JsonProviderError,
+    JsonProviderError, RPCTimeoutError,
 )
 from py_near.models import (
     TransactionResult,
@@ -151,7 +151,11 @@ class Account(object):
 
         try:
             if included:
-                await self._provider.send_tx_included(serialized_tx)
+                try:
+                    await self._provider.send_tx_included(serialized_tx)
+                except RPCTimeoutError as e:
+                    if "Transaction not included" in str(e):
+                        logger.error(f"Transaction not included {trx_hash}")
                 return trx_hash
             elif nowait:
                 return await self._provider.send_tx(serialized_tx)
