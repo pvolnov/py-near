@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import json
+from collections import Counter
 from typing import Optional
 
 import aiohttp
@@ -23,7 +24,8 @@ from py_near.exceptions.provider import (
     InvalidTransactionError,
     RPCTimeoutError,
     UnknownAccessKeyError,
-    ERROR_CODE_TO_EXCEPTION, InvalidNonce,
+    ERROR_CODE_TO_EXCEPTION,
+    InvalidNonce,
 )
 from py_near.models import TransactionResult
 
@@ -115,12 +117,13 @@ class JsonProvider(object):
         self._available_rpcs = available_rpcs
 
     async def call_rpc_request(
-        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False
+        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False, threshold=None
     ):
         await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
         res = {}
-        if broadcast:
+        if broadcast or threshold:
+
             async def f(rpc_call_addr):
                 async with aiohttp.ClientSession() as session:
                     r = await session.post(
@@ -128,22 +131,48 @@ class JsonProvider(object):
                         json=j,
                         timeout=timeout,
                         headers={
-                            "Referer": "https://tgapp.herewallet.app/"
+                            "Referer": "https://tgapp.herewallet.app"
                         },  # NEAR RPC requires Referer header
                     )
-                    r.raise_for_status()
-                    res = json.loads(await r.text())
-                    return res
+                    if r.status == 200:
+                        return json.loads(await r.text())
+
             tasks = [
                 asyncio.create_task(f(rpc_addr)) for rpc_addr in self._available_rpcs
             ]
+            responses = []
             for t in tasks:
                 try:
-                    res = await t
-                    return res
+                    responses.append(await t)
                 except Exception as e:
                     logger.error(f"Rpc error: {e}")
                     continue
+
+            def most_frequent_by_hash(array):
+                counter = Counter(array)
+                most_frequent = counter.most_common(1)[0][0]
+                return most_frequent
+
+            if threshold:
+                # return first most frequent response
+                array = [hash(json.dumps(x)) for x in responses]
+                most_frequent_element = most_frequent_by_hash(array)
+                correct_responses = [
+                    x for x in responses if hash(json.dumps(x)) == most_frequent_element
+                ]
+                if len(correct_responses) >= threshold:
+                    return responses[0]
+                raise Exception(
+                    f"Threshold not reached: {len(correct_responses)}/{threshold}"
+                )
+
+            if broadcast:
+                # return first response without errors
+                for res in responses:
+                    if "error" not in res:
+                        return res
+            return responses[0]
+
         for rpc_addr in self._available_rpcs:
             try:
                 async with aiohttp.ClientSession() as session:
@@ -191,9 +220,11 @@ class JsonProvider(object):
                     break
             return error
 
-    async def json_rpc(self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False):
+    async def json_rpc(
+        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False, threshold=None
+    ):
         content = await self.call_rpc_request(
-            method, params, timeout, broadcast=broadcast
+            method, params, timeout, broadcast=broadcast, threshold=threshold
         )
         if not content:
             raise RpcEmptyResponse("RPC returned empty response")
@@ -236,9 +267,6 @@ class JsonProvider(object):
         except InvalidNonce:
             logger.warning("Invalid nonce during broadcast included transaction")
             return None
-        except RPCTimeoutError:
-            raise RPCTimeoutError("Transaction not included")
-
 
     async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
         for _ in range(6):
@@ -356,6 +384,7 @@ class JsonProvider(object):
         args,
         finality="optimistic",
         block_id: Optional[int] = None,
+        threshold: Optional[int] = None,
     ):
         body = {
             "request_type": "call_function",
@@ -367,7 +396,7 @@ class JsonProvider(object):
             body["block_id"] = block_id
         else:
             body["finality"] = finality
-        return await self.json_rpc("query", body)
+        return await self.json_rpc("query", body, threshold=threshold)
 
     async def get_block(self, block_id):
         return await self.json_rpc("block", [block_id])

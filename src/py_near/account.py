@@ -14,7 +14,8 @@ from py_near import utils
 from py_near.dapps.ft.async_client import FT
 from py_near.dapps.staking.async_client import Staking
 from py_near.exceptions.provider import (
-    JsonProviderError, RPCTimeoutError,
+    JsonProviderError,
+    RPCTimeoutError,
 )
 from py_near.models import (
     TransactionResult,
@@ -393,6 +394,7 @@ class Account(object):
         method_name: str,
         args: dict,
         block_id: Optional[int] = None,
+        threshold: Optional[int] = None,
     ) -> ViewFunctionResult:
         """
         Call view function on smart contract. View function is read only function, it can't change state
@@ -400,10 +402,11 @@ class Account(object):
         :param method_name: method name to call
         :param args: json args to call method
         :param block_id: execution view transaction in block with given id
+        :param threshold: minimal amount of nodes with same result
         :return: result of view function call
         """
         result = await self._provider.view_call(
-            contract_id, method_name, json.dumps(args).encode("utf8"), block_id=block_id
+            contract_id, method_name, json.dumps(args).encode("utf8"), block_id=block_id, threshold=threshold
         )
         if "error" in result:
             raise ViewFunctionError(result["error"])
