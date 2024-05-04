@@ -121,82 +121,66 @@ class JsonProvider(object):
     ):
         await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
-        res = {}
+
+        async def f(rpc_call_addr):
+            auth_key = "py-near"
+            if "@" in rpc_call_addr:
+                auth_key = rpc_call_addr.split("//")[1].split("@")[0]
+                rpc_call_addr = rpc_call_addr.replace(auth_key + "@", "")
+            async with aiohttp.ClientSession() as session:
+                r = await session.post(
+                    rpc_call_addr,
+                    json=j,
+                    timeout=timeout,
+                    headers={
+                        "Referer": "https://tgapp.herewallet.app",
+                        "Authorization": f"Bearer {auth_key}",
+                    },  # NEAR RPC requires Referer header
+                )
+                if r.status == 200:
+                    return json.loads(await r.text())
+
         if broadcast or threshold:
-
-            async def f(rpc_call_addr):
-                async with aiohttp.ClientSession() as session:
-                    r = await session.post(
-                        rpc_call_addr,
-                        json=j,
-                        timeout=timeout,
-                        headers={
-                            "Referer": "https://tgapp.herewallet.app"
-                        },  # NEAR RPC requires Referer header
-                    )
-                    if r.status == 200:
-                        return json.loads(await r.text())
-
             tasks = [
                 asyncio.create_task(f(rpc_addr)) for rpc_addr in self._available_rpcs
             ]
-            responses = []
-            for t in tasks:
-                try:
-                    responses.append(await t)
-                except Exception as e:
-                    logger.error(f"Rpc error: {e}")
-                    continue
-
-            def most_frequent_by_hash(array):
-                counter = Counter(array)
-                most_frequent = counter.most_common(1)[0][0]
-                return most_frequent
-
-            if threshold:
-                # return first most frequent response
-                array = [hash(json.dumps(x)) for x in responses]
-                most_frequent_element = most_frequent_by_hash(array)
-                correct_responses = [
-                    x for x in responses if hash(json.dumps(x)) == most_frequent_element
-                ]
-                if len(correct_responses) >= threshold:
-                    return responses[0]
-                raise Exception(
-                    f"Threshold not reached: {len(correct_responses)}/{threshold}"
-                )
-
-            if broadcast:
-                # return first response without errors
-                for res in responses:
-                    if "error" not in res:
-                        return res
-            return responses[0]
-
-        for rpc_addr in self._available_rpcs:
+        else:
+            tasks = [f(rpc_addr) for rpc_addr in self._available_rpcs]
+        responses = []
+        for t in tasks:
             try:
-                async with aiohttp.ClientSession() as session:
-                    r = await session.post(
-                        rpc_addr,
-                        json=j,
-                        timeout=timeout,
-                        headers={
-                            "Referer": "https://tgapp.herewallet.app/"
-                        },  # NEAR RPC requires Referer header
-                    )
-                    r.raise_for_status()
-                    res = json.loads(await r.text())
-                    return res
-            except (
-                RPCTimeoutError,
-                ClientResponseError,
-                ClientConnectorError,
-                ServerDisconnectedError,
-                ConnectionError,
-            ) as e:
+                res = await t
+                if res:
+                    responses.append(res)
+                    if not (broadcast or threshold):
+                        return res
+            except Exception as e:
                 logger.error(f"Rpc error: {e}")
                 continue
-        return res
+        if not responses:
+            raise RpcEmptyResponse("RPC returned empty response")
+        def most_frequent_by_hash(array):
+            counter = Counter(array)
+            most_frequent = counter.most_common(1)[0][0]
+            return most_frequent
+
+        if threshold:
+            # return first most frequent response
+            array = [hash(json.dumps(x)) for x in responses]
+            most_frequent_element = most_frequent_by_hash(array)
+            correct_responses = [
+                x for x in responses if hash(json.dumps(x)) == most_frequent_element
+            ]
+            if len(correct_responses) >= threshold:
+                return responses[0]
+            raise Exception(
+                f"Threshold not reached: {len(correct_responses)}/{threshold}"
+            )
+
+        for res in responses:
+            if "error" not in res:
+                return res
+        raise RpcEmptyResponse("RPC returned empty response")
 
     @staticmethod
     def get_error_from_response(content: dict):
