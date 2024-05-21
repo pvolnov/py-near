@@ -61,10 +61,9 @@ class JsonProvider(object):
         self._last_rpc_addr_check = 0
         self.allow_broadcast = allow_broadcast
         self._timeout = timeout
-        self.session = aiohttp.ClientSession()
 
     async def shutdown(self):
-        await self.session.close()
+        pass
 
     async def check_available_rpcs(self):
         if (
