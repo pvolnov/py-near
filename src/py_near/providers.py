@@ -196,6 +196,7 @@ class JsonProvider(object):
                         return most_frequent_element
             raise RpcEmptyResponse(f"Threshold not reached: {len(correct_responses)}/{threshold}")
         else:
+            res = None
             for rpc_addr in self._available_rpcs:
                 try:
                     res = await f(rpc_addr)
@@ -204,6 +205,7 @@ class JsonProvider(object):
                 except Exception as e:
                     logger.error(f"Rpc error: {e}")
                     continue
+            return res
         raise RpcEmptyResponse("RPC returned empty response")
 
     @staticmethod
