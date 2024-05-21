@@ -184,7 +184,7 @@ class JsonProvider(object):
                         responses.append(result)
                     except Exception as e:
                         logger.warning(e)
-                if responses:
+                if responses and threshold:
                     array = [hash(json.dumps(x)) for x in responses]
                     most_frequent_element = self.most_frequent_by_hash(array)
                     correct_responses = [
