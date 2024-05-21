@@ -81,7 +81,8 @@ class JsonProvider(object):
             await asyncio.sleep(3)
 
         if not self._available_rpcs:
-            raise RpcNotAvailableError("All RPCs are unavailable")
+            self._available_rpcs = self._rpc_addresses.copy()
+            logger.error("All RPCs are async, reset to default list")
 
     async def _check_available_rpcs(self):
         available_rpcs = []
@@ -93,8 +94,15 @@ class JsonProvider(object):
                     "params": {"finality": "final"},
                     "id": 1,
                 }
+                auth_key = "py-near"
+                if "@" in rpc_addr:
+                    auth_key = rpc_addr.split("//")[1].split("@")[0]
+                    rpc_addr = rpc_addr.replace(auth_key + "@", "")
                 async with aiohttp.ClientSession() as session:
-                    async with session.post(rpc_addr, json=data) as r:
+                    async with session.post(rpc_addr, json=data, headers={
+                        "Referer": "https://tgapp.herewallet.app",
+                        "Authorization": f"Bearer {auth_key}",
+                    }) as r:
                         if r.status == 200:
                             data = json.loads(await r.text())["result"]
                             if data["sync_info"]["syncing"]:
@@ -119,6 +127,7 @@ class JsonProvider(object):
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
+                logger.error(f"Rpc check error: {e}")
         self._available_rpcs = available_rpcs
 
     @staticmethod
