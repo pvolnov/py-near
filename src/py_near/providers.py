@@ -155,14 +155,14 @@ class JsonProvider(object):
             ]
 
             responses = []
-            while len(pending):
+            while pending and len(pending):
                 done, pending = await asyncio.wait(
                     pending, return_when=asyncio.FIRST_COMPLETED
                 )
                 for task in done:
                     try:
                         result = task.result()
-                        if "error" not in result and threshold <= 1:
+                        if "error" not in result and (not threshold or threshold <= 1):
                             return result
                         responses.append(result)
                     except Exception as e:
