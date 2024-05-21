@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import datetime
 import json
 from collections import Counter
 from typing import Optional
@@ -7,8 +8,7 @@ from typing import Optional
 import aiohttp
 from aiohttp import ClientResponseError, ClientConnectorError, ServerDisconnectedError
 from loguru import logger
-import datetime
-from py_near import constants
+
 from py_near.constants import TIMEOUT_WAIT_RPC
 from py_near.exceptions.exceptions import RpcNotAvailableError, RpcEmptyResponse
 from py_near.exceptions.provider import (
@@ -46,7 +46,7 @@ PROVIDER_CODE_TO_EXCEPTION = {
 
 
 class JsonProvider(object):
-    def __init__(self, rpc_addr, allow_broadcast=True):
+    def __init__(self, rpc_addr, allow_broadcast=True, timeout=TIMEOUT_WAIT_RPC):
         """
         :param rpc_addr: str or list of str
         :param allow_broadcast: bool - submit signed transaction to all RPCs
@@ -60,6 +60,11 @@ class JsonProvider(object):
         self._available_rpcs = self._rpc_addresses.copy()
         self._last_rpc_addr_check = 0
         self.allow_broadcast = allow_broadcast
+        self._timeout = timeout
+        self.session = aiohttp.ClientSession()
+
+    async def shutdown(self):
+        await self.session.close()
 
     async def check_available_rpcs(self):
         if (
@@ -88,36 +93,41 @@ class JsonProvider(object):
                     "params": {"finality": "final"},
                     "id": 1,
                 }
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(rpc_addr, json=data) as r:
-                        if r.status == 200:
-                            data = json.loads(await r.text())["result"]
-                            if data["sync_info"]["syncing"]:
-                                last_block_ts = datetime.datetime.fromisoformat(
-                                    data["sync_info"]["latest_block_time"]
-                                )
-                                diff = (
-                                    datetime.datetime.utcnow().timestamp()
-                                    - last_block_ts.timestamp()
-                                )
-                                is_syncing = diff > 60
-                            else:
-                                is_syncing = False
-                            if is_syncing:
-                                logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
-                                continue
-                            available_rpcs.append(rpc_addr)
-                        else:
-                            logger.error(
-                                f"Remove rpc because of error {r.status}: {rpc_addr}"
+                async with self.session.post(rpc_addr, json=data) as r:
+                    if r.status == 200:
+                        data = json.loads(await r.text())["result"]
+                        if data["sync_info"]["syncing"]:
+                            last_block_ts = datetime.datetime.fromisoformat(
+                                data["sync_info"]["latest_block_time"]
                             )
+                            diff = (
+                                datetime.datetime.utcnow().timestamp()
+                                - last_block_ts.timestamp()
+                            )
+                            is_syncing = diff > 60
+                        else:
+                            is_syncing = False
+                        if is_syncing:
+                            logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
+                            continue
+                        available_rpcs.append(rpc_addr)
+                    else:
+                        logger.error(
+                            f"Remove rpc because of error {r.status}: {rpc_addr}"
+                        )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
         self._available_rpcs = available_rpcs
 
+    @staticmethod
+    def most_frequent_by_hash(array):
+        counter = Counter(array)
+        most_frequent = counter.most_common(1)[0][0]
+        return most_frequent
+
     async def call_rpc_request(
-        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False, threshold=None
+        self, method, params, broadcast=False, threshold: int = 0
     ):
         await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
@@ -127,59 +137,55 @@ class JsonProvider(object):
             if "@" in rpc_call_addr:
                 auth_key = rpc_call_addr.split("//")[1].split("@")[0]
                 rpc_call_addr = rpc_call_addr.replace(auth_key + "@", "")
-            async with aiohttp.ClientSession() as session:
-                r = await session.post(
-                    rpc_call_addr,
-                    json=j,
-                    timeout=timeout,
-                    headers={
-                        "Referer": "https://tgapp.herewallet.app",
-                        "Authorization": f"Bearer {auth_key}",
-                    },  # NEAR RPC requires Referer header
-                )
-                if r.status == 200:
-                    return json.loads(await r.text())
+            r = await self.session.post(
+                rpc_call_addr,
+                json=j,
+                timeout=self._timeout,
+                headers={
+                    "Referer": "https://tgapp.herewallet.app",
+                    "Authorization": f"Bearer {auth_key}",
+                },  # NEAR RPC requires Referer header
+            )
+            if r.status == 200:
+                return json.loads(await r.text())
 
         if broadcast or threshold:
-            tasks = [
+            pending = [
                 asyncio.create_task(f(rpc_addr)) for rpc_addr in self._available_rpcs
             ]
+
+            responses = []
+            while len(pending):
+                done, pending = await asyncio.wait(
+                    pending, return_when=asyncio.FIRST_COMPLETED
+                )
+                for task in done:
+                    try:
+                        result = task.result()
+                        if "error" not in result and threshold <= 1:
+                            return result
+                        responses.append(result)
+                    except Exception as e:
+                        logger.warning(e)
+                if responses:
+                    array = [hash(json.dumps(x)) for x in responses]
+                    most_frequent_element = self.most_frequent_by_hash(array)
+                    correct_responses = [
+                        x for x in responses if hash(json.dumps(x)) == most_frequent_element
+                    ]
+                    if len(correct_responses) >= threshold:
+                        for task in pending:
+                            task.cancel()
+                        return most_frequent_element
         else:
-            tasks = [f(rpc_addr) for rpc_addr in self._available_rpcs]
-        responses = []
-        for t in tasks:
-            try:
-                res = await t
-                if res:
-                    responses.append(res)
-                    if not (broadcast or threshold):
+            for rpc_addr in self._available_rpcs:
+                try:
+                    res = await f(rpc_addr)
+                    if "error" not in res:
                         return res
-            except Exception as e:
-                logger.error(f"Rpc error: {e}")
-                continue
-        if not responses:
-            raise RpcEmptyResponse("RPC returned empty response")
-        def most_frequent_by_hash(array):
-            counter = Counter(array)
-            most_frequent = counter.most_common(1)[0][0]
-            return most_frequent
-
-        if threshold:
-            # return first most frequent response
-            array = [hash(json.dumps(x)) for x in responses]
-            most_frequent_element = most_frequent_by_hash(array)
-            correct_responses = [
-                x for x in responses if hash(json.dumps(x)) == most_frequent_element
-            ]
-            if len(correct_responses) >= threshold:
-                return responses[0]
-            raise Exception(
-                f"Threshold not reached: {len(correct_responses)}/{threshold}"
-            )
-
-        for res in responses:
-            if "error" not in res:
-                return res
+                except Exception as e:
+                    logger.error(f"Rpc error: {e}")
+                    continue
         raise RpcEmptyResponse("RPC returned empty response")
 
     @staticmethod
@@ -204,11 +210,9 @@ class JsonProvider(object):
                     break
             return error
 
-    async def json_rpc(
-        self, method, params, timeout=TIMEOUT_WAIT_RPC, broadcast=False, threshold=None
-    ):
+    async def json_rpc(self, method, params, broadcast=False, threshold=None):
         content = await self.call_rpc_request(
-            method, params, timeout, broadcast=broadcast, threshold=threshold
+            method, params, broadcast=broadcast, threshold=threshold
         )
         if not content:
             raise RpcEmptyResponse("RPC returned empty response")
@@ -218,7 +222,7 @@ class JsonProvider(object):
             raise error
         return content["result"]
 
-    async def send_tx(self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC):
+    async def send_tx(self, signed_tx: str):
         """
         Send a signed transaction to the network and return the hash of the transaction
         :param signed_tx: base64 encoded signed transaction, str.
@@ -228,13 +232,10 @@ class JsonProvider(object):
         return await self.json_rpc(
             "broadcast_tx_async",
             [signed_tx],
-            timeout=timeout,
             broadcast=self.allow_broadcast,
         )
 
-    async def send_tx_included(
-        self, signed_tx: str, timeout: int = constants.TIMEOUT_WAIT_RPC
-    ):
+    async def send_tx_included(self, signed_tx: str):
         """
         Send a signed transaction to the network and return the hash of the transaction
         :param signed_tx: base64 encoded signed transaction, str.
@@ -245,7 +246,6 @@ class JsonProvider(object):
             return await self.json_rpc(
                 "send_tx",
                 {"signed_tx_base64": signed_tx, "wait_until": "INCLUDED"},
-                timeout=timeout,
                 broadcast=self.allow_broadcast,
             )
         except InvalidNonce:
@@ -269,7 +269,6 @@ class JsonProvider(object):
     async def send_tx_and_wait(
         self,
         signed_tx: str,
-        timeout: int = constants.TIMEOUT_WAIT_RPC,
         trx_hash: Optional[str] = None,
         receiver_id: Optional[str] = None,
     ) -> TransactionResult:
@@ -283,7 +282,6 @@ class JsonProvider(object):
             res = await self.json_rpc(
                 "broadcast_tx_commit",
                 [signed_tx],
-                timeout=timeout,
                 broadcast=self.allow_broadcast,
             )
             return TransactionResult(**res)

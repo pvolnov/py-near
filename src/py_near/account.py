@@ -93,6 +93,13 @@ class Account(object):
         self._lock_by_pk = collections.defaultdict(asyncio.Lock)
         self.chain_id = (await self._provider.get_status())["chain_id"]
 
+    async def shutdown(self):
+        """
+        Close async object
+        :return:
+        """
+        await self._provider.shutdown()
+
     async def _update_last_block_hash(self):
         """
         Update last block hash& If it's older than 50 block before, transaction will fail
@@ -406,7 +413,11 @@ class Account(object):
         :return: result of view function call
         """
         result = await self._provider.view_call(
-            contract_id, method_name, json.dumps(args).encode("utf8"), block_id=block_id, threshold=threshold
+            contract_id,
+            method_name,
+            json.dumps(args).encode("utf8"),
+            block_id=block_id,
+            threshold=threshold,
         )
         if "error" in result:
             raise ViewFunctionError(result["error"])
