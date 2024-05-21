@@ -148,6 +148,12 @@ class JsonProvider(object):
             )
             if r.status == 200:
                 return json.loads(await r.text())
+            return {
+                "error": {
+                    "cause": {"name": "RPC_ERROR", "message": f"Status: {r.status}"},
+                    "data": await r.text(),
+                }
+            }
 
         if broadcast or threshold:
             pending = [
