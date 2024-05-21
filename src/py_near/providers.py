@@ -93,28 +93,29 @@ class JsonProvider(object):
                     "params": {"finality": "final"},
                     "id": 1,
                 }
-                async with self.session.post(rpc_addr, json=data) as r:
-                    if r.status == 200:
-                        data = json.loads(await r.text())["result"]
-                        if data["sync_info"]["syncing"]:
-                            last_block_ts = datetime.datetime.fromisoformat(
-                                data["sync_info"]["latest_block_time"]
-                            )
-                            diff = (
-                                datetime.datetime.utcnow().timestamp()
-                                - last_block_ts.timestamp()
-                            )
-                            is_syncing = diff > 60
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(rpc_addr, json=data) as r:
+                        if r.status == 200:
+                            data = json.loads(await r.text())["result"]
+                            if data["sync_info"]["syncing"]:
+                                last_block_ts = datetime.datetime.fromisoformat(
+                                    data["sync_info"]["latest_block_time"]
+                                )
+                                diff = (
+                                    datetime.datetime.utcnow().timestamp()
+                                    - last_block_ts.timestamp()
+                                )
+                                is_syncing = diff > 60
+                            else:
+                                is_syncing = False
+                            if is_syncing:
+                                logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
+                                continue
+                            available_rpcs.append(rpc_addr)
                         else:
-                            is_syncing = False
-                        if is_syncing:
-                            logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
-                            continue
-                        available_rpcs.append(rpc_addr)
-                    else:
-                        logger.error(
-                            f"Remove rpc because of error {r.status}: {rpc_addr}"
-                        )
+                            logger.error(
+                                f"Remove rpc because of error {r.status}: {rpc_addr}"
+                            )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
@@ -137,23 +138,24 @@ class JsonProvider(object):
             if "@" in rpc_call_addr:
                 auth_key = rpc_call_addr.split("//")[1].split("@")[0]
                 rpc_call_addr = rpc_call_addr.replace(auth_key + "@", "")
-            r = await self.session.post(
-                rpc_call_addr,
-                json=j,
-                timeout=self._timeout,
-                headers={
-                    "Referer": "https://tgapp.herewallet.app",
-                    "Authorization": f"Bearer {auth_key}",
-                },  # NEAR RPC requires Referer header
-            )
-            if r.status == 200:
-                return json.loads(await r.text())
-            return {
-                "error": {
-                    "cause": {"name": "RPC_ERROR", "message": f"Status: {r.status}"},
-                    "data": await r.text(),
+            async with aiohttp.ClientSession() as session:
+                r = await session.post(
+                    rpc_call_addr,
+                    json=j,
+                    timeout=self._timeout,
+                    headers={
+                        "Referer": "https://tgapp.herewallet.app",
+                        "Authorization": f"Bearer {auth_key}",
+                    },  # NEAR RPC requires Referer header
+                )
+                if r.status == 200:
+                    return json.loads(await r.text())
+                return {
+                    "error": {
+                        "cause": {"name": "RPC_ERROR", "message": f"Status: {r.status}"},
+                        "data": await r.text(),
+                    }
                 }
-            }
 
         if broadcast or threshold:
             pending = [
