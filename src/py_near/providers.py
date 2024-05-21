@@ -172,6 +172,8 @@ class JsonProvider(object):
 
             responses = []
             correct_responses = []
+            result = None
+
             while pending and len(pending):
                 done, pending = await asyncio.wait(
                     pending, return_when=asyncio.FIRST_COMPLETED
@@ -194,7 +196,9 @@ class JsonProvider(object):
                         for task in pending:
                             task.cancel()
                         return most_frequent_element
-            raise RpcEmptyResponse(f"Threshold not reached: {len(correct_responses)}/{threshold}")
+            if threshold and threshold > 0:
+                raise RpcEmptyResponse(f"Threshold not reached: {len(correct_responses)}/{threshold}")
+            return result
         else:
             res = None
             for rpc_addr in self._available_rpcs:
