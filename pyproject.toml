@@ -1,15 +1,15 @@
 [tool.poetry]
 name = "py-near"
-version = "1.1.45"
+version = "1.1.47"
 description="Pretty simple and fully asynchronous framework for working with NEAR blockchain"
 authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-ed25519 = "^1.5"
-aiohttp = "^3.7.4"
-py-near-primitives = "^0.2.3"
+ed25519 = "1.5"
+httpx = "0.27.0"
+py-near-primitives = "0.2.3"
 
 [tool.poetry.dev-dependencies]
 black = "^21.12b0"
@@ -22,12 +22,12 @@ base58 = "^2.1.1"
 
 [project]
 name = "py-near"
-version = "1.1.45"
+version = "1.1.47"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchaink"
 authors = [ {name = "pvolnov", email = "petr@herewallet.app"} ]
 requires-python = ">=3.7"
 license = {file = "LICENSE"}
-dependencies=["base58", "ed25519", "aiohttp", "py-near-primitives", "pydantic"]
+dependencies=["base58", "ed25519", "httpx", "py-near-primitives", "pydantic"]
 keywords = ["python", "near", "async"]
 classifiers = [
     "Programming Language :: Python :: 3",
