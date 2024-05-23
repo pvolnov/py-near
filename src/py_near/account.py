@@ -1,7 +1,16 @@
 import asyncio
 import collections
 import json
+import sys
 from typing import List, Union, Dict, Optional
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    from collections.abc import MutableSet, MutableMapping
+
+    collections.MutableSet = collections.abc.MutableSet
+    collections.MutableMapping = collections.abc.MutableMapping
+else:
+    from collections import MutableSet
 
 import base58
 import ed25519
