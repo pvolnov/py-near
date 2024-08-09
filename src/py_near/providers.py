@@ -65,24 +65,6 @@ class JsonProvider(object):
     async def shutdown(self):
         pass
 
-    async def check_available_rpcs(self):
-        if (
-            self._last_rpc_addr_check < datetime.datetime.now().timestamp() - 30
-            or not self._available_rpcs
-        ):
-            self._last_rpc_addr_check = datetime.datetime.now().timestamp()
-            asyncio.create_task(self._check_available_rpcs())
-
-        for _ in range(5):
-            if self._available_rpcs:
-                break
-            await self._check_available_rpcs()
-            await asyncio.sleep(3)
-
-        if not self._available_rpcs:
-            self._available_rpcs = self._rpc_addresses.copy()
-            logger.error("All RPCs are async, reset to default list")
-
     async def _check_available_rpcs(self):
         available_rpcs = []
         for rpc_addr in self._rpc_addresses:
@@ -132,7 +114,7 @@ class JsonProvider(object):
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
-                logger.error(f"Rpc check error: {e}")
+                logger.exception(e)
         self._available_rpcs = available_rpcs
 
     @staticmethod
@@ -144,7 +126,6 @@ class JsonProvider(object):
     async def call_rpc_request(
         self, method, params, broadcast=False, threshold: int = 0
     ):
-        await self.check_available_rpcs()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         async def f(rpc_call_addr):
@@ -325,7 +306,6 @@ class JsonProvider(object):
                 return await self.wait_for_trx(trx_hash, receiver_id)
 
     async def get_status(self):
-        await self.check_available_rpcs()
         for rpc_addr in self._available_rpcs.copy():
             try:
                 data = {
