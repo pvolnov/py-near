@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Optional
 
 import httpx
+from httpx import Limits
 from loguru import logger
 
 from py_near.constants import TIMEOUT_WAIT_RPC
@@ -60,7 +61,9 @@ class JsonProvider(object):
         self._last_rpc_addr_check = 0
         self.allow_broadcast = allow_broadcast
         self._timeout = timeout
-        self._client: httpx.AsyncClient = httpx.AsyncClient()
+        self._client = httpx.AsyncClient(
+            limits=Limits(max_connections=1000, max_keepalive_connections=200)
+        )
 
     async def shutdown(self):
         pass
@@ -320,9 +323,7 @@ class JsonProvider(object):
                 if "@" in rpc_addr:
                     auth_key = rpc_addr.split("//")[1].split("@")[0]
                     rpc_addr = rpc_addr.replace(auth_key + "@", "")
-                    headers = {
-                        "Authorization": f"Bearer {auth_key}"
-                    }
+                    headers = {"Authorization": f"Bearer {auth_key}"}
                 r = await self._client.post(rpc_addr, json=data, headers=headers)
                 if r.status_code == 200:
                     return json.loads(r.text)["result"]
