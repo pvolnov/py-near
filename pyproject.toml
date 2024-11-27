@@ -6,8 +6,9 @@ authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 ed25519 = "1.5"
+loguru = "0.7.2"
 httpx = "0.26.0"
 py-near-primitives = "0.2.3"
 
