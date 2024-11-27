@@ -220,8 +220,11 @@ class JsonProvider(object):
                     break
                 if not body:
                     return error
-                key, body = list(body.items())[0]
-                if key in ERROR_CODE_TO_EXCEPTION:
+                if len(body) == 1 and list(body.keys())[0] in ERROR_CODE_TO_EXCEPTION:
+                    key, body = list(body.items())[0]
+                    if isinstance(body, str) and body in ERROR_CODE_TO_EXCEPTION:
+                        key = body
+                        body = {}
                     error = ERROR_CODE_TO_EXCEPTION[key](
                         body, error_json=content["error"]
                     )
