@@ -6,7 +6,8 @@ authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+base58 = "^2.1.1"
+python = ">=3.8,<3.12"
 aiohttp = "^3.7.4"
 py-near-primitives = "0.2.3"
 frozenlist = "^1.4.1"
@@ -14,23 +15,22 @@ pynacl = "^1.5.0"
 loguru = "^0.7.2"
 pydantic = "^2.6.2"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^21.12b0"
 mypy = "^0.930"
-pytest = "^6.2.5"
+pytest = ">=7.0,<8.0"
 flake8 = "^4.0.1"
 Sphinx = "^4.3.2"
 sphinx-rtd-theme = "^1.0.0"
-base58 = "^2.1.1"
+pytest-asyncio = "^0.23.5"
 
 [project]
 name = "py-near"
 version = "1.1.50"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchaink"
 authors = [ {name = "pvolnov", email = "petr@herewallet.app"} ]
-requires-python = ">=3.10"
 license = {file = "LICENSE"}
-dependencies=["base58", "httpx", "py-near-primitives", "pydantic"]
+
 keywords = ["python", "near", "async"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -57,3 +57,10 @@ repository = "https://github.com/pvolnov/py-near"
 changelog = "https://github.com/pvolnov/py-near/blob/main/CHANGELOG.md"
 funding = "https://opencollective.com/py-near"
 twitter = "https://twitter.com/p_volnov"
+
+[tool.pytest.ini_options]
+addopts = "--capture=no --tb=native"
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
