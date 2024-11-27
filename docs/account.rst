@@ -85,7 +85,7 @@ Documentation
 
 .. function:: get_access_key_list(account_id=None)
 
-    Send fungible token to phone number. Reciver will get sms with link to claim tokens.
+    Send fungible token to phone number. Receiver will get sms with link to claim tokens.
     Get access key list for account_id, if account_id is None, get access key list for current account
 
     :param account_id: if account_id is None, return balance of current account
