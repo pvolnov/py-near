@@ -1,7 +1,16 @@
 import asyncio
 import collections
 import json
+import sys
 from typing import List, Union, Dict, Optional
+
+if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+    from collections.abc import MutableSet, MutableMapping
+
+    collections.MutableSet = collections.abc.MutableSet
+    collections.MutableMapping = collections.abc.MutableMapping
+else:
+    from collections import MutableSet
 
 import base58
 from nacl import signing, encoding
@@ -15,6 +24,7 @@ from py_near.dapps.ft.async_client import FT
 from py_near.dapps.staking.async_client import Staking
 from py_near.exceptions.provider import (
     JsonProviderError,
+    RPCTimeoutError,
 )
 from py_near.models import (
     TransactionResult,
@@ -90,6 +100,13 @@ class Account(object):
         self._lock_by_pk = collections.defaultdict(asyncio.Lock)
         self.chain_id = (await self._provider.get_status())["chain_id"]
 
+    async def shutdown(self):
+        """
+        Close async object
+        :return:
+        """
+        await self._provider.shutdown()
+
     async def _update_last_block_hash(self):
         """
         Update last block hash& If it's older than 50 block before, transaction will fail
@@ -106,7 +123,7 @@ class Account(object):
         self._latest_block_hash_ts = utils.timestamp()
 
     async def sign_and_submit_tx(
-        self, receiver_id, actions: List[Action], nowait=False
+        self, receiver_id, actions: List[Action], nowait=False, included=False
     ) -> Union[TransactionResult, str]:
         """
         Sign transaction and send it to blockchain
@@ -114,6 +131,7 @@ class Account(object):
         :param actions: list of actions
         :param nowait: if nowait is True, return transaction hash, else wait execution
         confirm and return TransactionResult
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         if not self._signers:
@@ -147,7 +165,14 @@ class Account(object):
         )
 
         try:
-            if nowait:
+            if included:
+                try:
+                    await self._provider.send_tx_included(serialized_tx)
+                except RPCTimeoutError as e:
+                    if "Transaction not included" in str(e):
+                        logger.error(f"Transaction not included {trx_hash}")
+                return trx_hash
+            elif nowait:
                 return await self._provider.send_tx(serialized_tx)
             return await self._provider.send_tx_and_wait(
                 serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
@@ -210,17 +235,18 @@ class Account(object):
         return await self._provider.get_account(self.account_id)
 
     async def send_money(
-        self, account_id: str, amount: int, nowait: bool = False
+        self, account_id: str, amount: int, nowait: bool = False, included=False
     ) -> TransactionResult:
         """
         Send money to account_id
         :param account_id: receiver account id
         :param amount: amount in yoctoNEAR
         :param nowait: if nowait is True, return transaction hash, else wait execution
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         return await self.sign_and_submit_tx(
-            account_id, [transactions.create_transfer_action(amount)], nowait
+            account_id, [transactions.create_transfer_action(amount)], nowait, included
         )
 
     async def function_call(
@@ -231,6 +257,7 @@ class Account(object):
         gas: int = constants.DEFAULT_ATTACHED_GAS,
         amount: int = 0,
         nowait: bool = False,
+        included=False,
     ):
         """
         Call function on smart contract
@@ -240,6 +267,7 @@ class Account(object):
         :param gas: amount of attachment gas. Default is 200000000000000
         :param amount: amount of attachment NEAR, Default is 0
         :param nowait: if nowait is True, return transaction hash, else wait execution
+        :param included: if included is True, return transaction hash, else wait execution
         :return: transaction hash or TransactionResult
         """
         ser_args = json.dumps(args).encode("utf8")
@@ -251,6 +279,7 @@ class Account(object):
                 )
             ],
             nowait,
+            included,
         )
 
     async def create_account(
@@ -333,6 +362,7 @@ class Account(object):
         delegate_action: Union[DelegateAction, DelegateActionModel],
         signature: Union[bytes, str],
         nowait=False,
+        included=False,
     ):
         if isinstance(signature, str):
             signature = base58.b58decode(signature.replace("ed25519:", ""))
@@ -342,7 +372,9 @@ class Account(object):
         actions = [
             transactions.create_signed_delegate(delegate_action, signature),
         ]
-        return await self.sign_and_submit_tx(delegate_action.sender_id, actions, nowait)
+        return await self.sign_and_submit_tx(
+            delegate_action.sender_id, actions, nowait, included
+        )
 
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
@@ -377,6 +409,7 @@ class Account(object):
         method_name: str,
         args: dict,
         block_id: Optional[int] = None,
+        threshold: Optional[int] = None,
     ) -> ViewFunctionResult:
         """
         Call view function on smart contract. View function is read only function, it can't change state
@@ -384,10 +417,15 @@ class Account(object):
         :param method_name: method name to call
         :param args: json args to call method
         :param block_id: execution view transaction in block with given id
+        :param threshold: minimal amount of nodes with same result
         :return: result of view function call
         """
         result = await self._provider.view_call(
-            contract_id, method_name, json.dumps(args).encode("utf8"), block_id=block_id
+            contract_id,
+            method_name,
+            json.dumps(args).encode("utf8"),
+            block_id=block_id,
+            threshold=threshold,
         )
         if "error" in result:
             raise ViewFunctionError(result["error"])
