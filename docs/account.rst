@@ -156,7 +156,7 @@ Documentation
 
 .. function:: create_account(account_id: str, public_key: Union[str, bytes], initial_balance: int, nowait=False)
 
-    Create new account in subdomian of current account. For example, if current account is "test.near",
+    Create new account in subdomain of current account. For example, if current account is "test.near",
         you can create "wwww.test.near"
 
     :param account_id: new account id
