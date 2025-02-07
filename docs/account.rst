@@ -6,9 +6,9 @@ Quick start
 -----------
 .. code:: python
 
-    from pynear.account import Account
+    from py_near.account import Account
     import asyncio
-    from pynear.dapps.core import NEAR
+    from py_near.dapps.core import NEAR
 
     ACCOUNT_ID = "bob.near"
     PRIVATE_KEY = "ed25519:..."
