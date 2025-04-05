@@ -5,7 +5,7 @@ At first you have to import all necessary modules
 
 .. code:: python
 
-    from pynear.account import Account
+    from py_near.account import Account
 
 Then you have to initialize `Account`
 
@@ -23,7 +23,7 @@ Next step: check account balance
 .. code:: python
 
     import asyncio
-    from pynear.dapps.core import NEAR
+    from py_near.dapps.core import NEAR
 
     async def main():
         await acc.startup()
@@ -61,9 +61,9 @@ Summary
 
 .. code:: python
 
-    from pynear.account import Account
+    from py_near.account import Account
     import asyncio
-    from pynear.dapps.core import NEAR
+    from py_near.dapps.core import NEAR
 
     ACCOUNT_ID = "bob.near"
     PRIVATE_KEY = "ed25519:..."

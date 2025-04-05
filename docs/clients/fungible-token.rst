@@ -8,8 +8,8 @@ Quick start
 
 .. code:: python
 
-    from pynear.account import Account
-    from pynear.dapps.fts import FTS
+    from py_near.account import Account
+    from py_near.dapps.fts import FTS
     import asyncio
 
     ACCOUNT_ID = "bob.near"
