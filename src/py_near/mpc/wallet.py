@@ -1,3 +1,4 @@
+import json
 from hashlib import sha256
 from typing import List, Optional
 
@@ -89,20 +90,47 @@ class MPCWallet:
             raise ValueError(
                 "MPCWallet already exists with different auth method, please use another wallet_id"
             )
+        auth_to_add_msg = json.dumps(
+            dict(public_keys=[base58.b58encode(public_key).decode()], rules=[])
+        ).replace(" ", "")
+        return await self.create_wallet(
+            "keys.auth.hot.tg", None, auth_to_add_msg, key_gen
+        )
+
+    async def create_wallet(
+        self, auth_account_id: str, metadata: str = "", auth_to_add_msg="", key_gen=1
+    ):
+        """
+        Create wallet with keys.auth.hot.tg auth method.
+        :param public_key: Public key for auth future signs on keys.auth.hot.tg
+        """
+        wallet = await self.get_wallet()
+        if wallet and wallet.access_list[0].account_id != "default.auth.hot.tg":
+            raise ValueError(
+                "MPCWallet already exists with different auth method, please use another wallet_id"
+            )
         root_pk = self.derive_private_key(0)
-        proof_hash = sha256(f"CREATE_WALLET:{self.wallet_id}".encode("utf-8")).digest()
+        proof_hash = sha256(
+            f"CREATE_WALLET:{self.wallet_id}:{auth_account_id}:{metadata}:{auth_to_add_msg}".encode(
+                "utf-8"
+            )
+        ).digest()
         signature = base58.b58encode(root_pk.sign(proof_hash).signature).decode("utf-8")
 
         s = await self._client.post(
             f"{self.hot_rpc}/create_wallet",
             json=dict(
-                public_key=base58.b58encode(public_key).decode(),
                 wallet_id=self.wallet_id,
                 key_gen=key_gen,
                 signature=signature,
                 wallet_derive_public_key=base58.b58encode(
                     root_pk.verify_key.encode()
                 ).decode(),
+                auth={
+                    "auth_account_id": auth_account_id,
+                    "msg": auth_to_add_msg,
+                    "metadata": metadata or None,
+                },
             ),
             timeout=30,
         )
@@ -126,7 +154,8 @@ class MPCWallet:
 
     async def sign_message(
         self,
-        message_body: bytes,
+        msg_hash: bytes,
+        message_body: Optional[bytes] = None,
         curve_type: CurveType = CurveType.SECP256K1,
         auth_methods: List[AuthContract] = None,
     ):
@@ -134,38 +163,33 @@ class MPCWallet:
             raise ValueError("Default auth key is required")
         wallet = await self.get_wallet()
         user_payloads = []
-        msg_hash = keccak(message_body)
         if len(auth_methods) != len(wallet.access_list):
             raise ValueError("Auth methods count should be equal to wallet access list")
 
         for auth_contract, auth_method in zip(auth_methods, wallet.access_list):
-            auth_class = AUTH_CLASS[auth_method.account_id]
-            if not isinstance(auth_contract, auth_class):
-                raise ValueError(
-                    f"Auth method {auth_method.account_id} is not supported for this auth class"
-                )
             user_payloads.append(auth_contract.generate_user_payload(msg_hash))
 
         proof = {
             "auth_id": 0,
             "curve_type": curve_type,
             "user_payloads": user_payloads,
-            "message_body": message_body.hex(),
+            "message_body": message_body.hex() if message_body else "",
         }
 
-        resp = (
-            await self._client.post(
-                f"{self.hot_rpc}/sign_raw",
-                json=dict(
-                    uid=self.derive.hex(),
-                    message=msg_hash.hex(),
-                    proof=proof,
-                    key_type=curve_type,
-                ),
-                timeout=10,
-                follow_redirects=True,
-            )
-        ).json()
+        resp = await self._client.post(
+            f"{self.hot_rpc}/sign_raw",
+            json=dict(
+                uid=self.derive.hex(),
+                message=msg_hash.hex(),
+                proof=proof,
+                key_type=curve_type,
+            ),
+            timeout=10,
+            follow_redirects=True,
+        )
+        resp = resp.json()
+        if "Ecdsa" not in resp:
+            raise ValueError(f"Invalid response from server: {resp}")
         resp = resp["Ecdsa"]
         r = int(resp["big_r"][2:], 16)
         s = int(resp["signature"], 16)
