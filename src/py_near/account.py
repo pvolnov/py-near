@@ -4,6 +4,8 @@ import json
 import sys
 from typing import List, Union, Dict, Optional
 
+from nacl.signing import VerifyKey
+
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     from collections.abc import MutableSet, MutableMapping
 
@@ -86,8 +88,8 @@ class Account(object):
                     logger.error(f"Can't decode private key {pk[:10]}")
                     continue
             private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
-            public_key = private_key.verify_key
-            self._signer_by_pk[public_key] = pk
+            public_key_b58 = base58.b58encode(private_key.verify_key.encode()).decode("utf-8")
+            self._signer_by_pk[public_key_b58] = pk
             self._free_signers.put_nowait(pk)
             self._signers.append(pk)
 
@@ -206,8 +208,6 @@ class Account(object):
 
         private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
         public_key = private_key.verify_key
-        public_key.to_curve25519_public_key()
-
         resp = await self._provider.get_access_key(
             self.account_id, base58.b58encode(public_key.encode()).decode("utf8")
         )
@@ -449,14 +449,14 @@ class Account(object):
         await self._update_last_block_hash()
 
         private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
-        verifying_key = private_key.verify_key
+        verifying_key: VerifyKey = private_key.verify_key
         return DelegateActionModel(
             sender_id=self.account_id,
             receiver_id=receiver_id,
             actions=actions,
             nonce=access_key.nonce + 1,
             max_block_height=self._latest_block_height + 1000,
-            public_key=base58.b58encode(verifying_key.to_bytes()).decode("utf-8"),
+            public_key=base58.b58encode(verifying_key.encode()).decode("utf-8"),
         )
 
     def sign_delegate_transaction(

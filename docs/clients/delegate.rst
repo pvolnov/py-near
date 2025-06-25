@@ -89,7 +89,7 @@ The following Python function creates and signs a delegate transaction from ``al
     import ed25519
 
     private_key = ed25519.SigningKey(base58.b58decode("...."))
-    public_key = base58.b58encode(private_key.get_verifying_key().to_bytes()).decode()
+    public_key = base58.b58encode(private_key.get_verifying_key().encode()).decode()
 
     action = DelegateActionModel(
         sender_id="alisa.near",
