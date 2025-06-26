@@ -87,7 +87,9 @@ class Account(object):
                 except UnicodeEncodeError:
                     logger.error(f"Can't decode private key {pk[:10]}")
                     continue
-            private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
+            if len(pk) > 32:
+                pk = pk[:32]
+            private_key = signing.SigningKey(pk, encoder=encoding.RawEncoder)
             public_key_b58 = base58.b58encode(private_key.verify_key.encode()).decode("utf-8")
             self._signer_by_pk[public_key_b58] = pk
             self._free_signers.put_nowait(pk)
