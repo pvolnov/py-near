@@ -100,7 +100,7 @@ The following Python function creates and signs a delegate transaction from ``al
         public_key=public_key,
     )
 
-    sign = private_key.sign(action.nep461_hash)
+    sign = private_key.sign(action.nep461_hash).decode()
 
 
 
