@@ -478,7 +478,7 @@ class Account(object):
         if public_key not in self._signer_by_pk:
             raise ValueError(f"Public key {public_key} not found in signer list")
 
-        private_key = signing.SigningKey(self._signer_by_pk[public_key], encoder=encoding.RawEncoder)
+        private_key = signing.SigningKey(self._signer_by_pk[public_key][:32], encoder=encoding.RawEncoder)
         sign = private_key.sign(nep461_hash)
         return base58.b58encode(sign).decode("utf-8")
 
