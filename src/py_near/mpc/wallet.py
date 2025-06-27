@@ -98,7 +98,12 @@ class MPCWallet:
         )
 
     async def create_wallet(
-        self, auth_account_id: str, metadata: str = "", auth_to_add_msg="", key_gen=1
+        self,
+        auth_account_id: str,
+        metadata: str = "",
+        auth_to_add_msg="",
+        key_gen=1,
+        timeout=30,
     ):
         """
         Create wallet with keys.auth.hot.tg auth method.
@@ -132,16 +137,16 @@ class MPCWallet:
                     "metadata": metadata or None,
                 },
             ),
-            timeout=30,
+            timeout=timeout,
         )
         return s.json()
 
-    async def get_ecdsa_public_key(self) -> bytes:
+    async def get_ecdsa_public_key(self, timeout=10) -> bytes:
         resp = (
             await self._client.post(
                 f"{self.hot_rpc}/public_key",
                 json=dict(wallet_derive=base58.b58encode(self.derive).decode()),
-                timeout=10,
+                timeout=timeout,
                 follow_redirects=True,
             )
         ).json()
@@ -158,6 +163,7 @@ class MPCWallet:
         message_body: Optional[bytes] = None,
         curve_type: CurveType = CurveType.SECP256K1,
         auth_methods: List[AuthContract] = None,
+        timeout=10,
     ):
         if not self.default_root_pk:
             raise ValueError("Default auth key is required")
@@ -184,7 +190,7 @@ class MPCWallet:
                 proof=proof,
                 key_type=curve_type,
             ),
-            timeout=10,
+            timeout=timeout,
             follow_redirects=True,
         )
         resp = resp.json()
