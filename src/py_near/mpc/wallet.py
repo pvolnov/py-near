@@ -45,9 +45,9 @@ class MPCWallet:
         :param default_root_pk: Default auth key for HOT Protocol, if provided, derive = sha256(default_root_pk.public_key).digest()
         """
         self.near_account = near_account
-        if len(default_root_pk) != 32:
-            raise ValueError("Default root pk should be 32 bytes")
         if default_root_pk:
+            if len(default_root_pk) != 32:
+                raise ValueError("Default root pk should be 32 bytes")
             self.default_root_pk = default_root_pk
             private_key_obj = self.derive_private_key(0)
             derive = sha256(private_key_obj.verify_key.encode()).digest()
