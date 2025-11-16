@@ -33,7 +33,7 @@ version = "1.2.1"
 description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
 authors = [{ name = "pvolnov", email = "peter@hot-labs.org" }]
 license = { file = "LICENSE" }
-requires-python = ">=3.9,<3.12"
+requires-python = ">=3.9,<4"
 dependencies = [
     "base58>=2.1.1",
     "frozenlist>=1.4.1",
