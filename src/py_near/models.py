@@ -372,7 +372,6 @@ class ReceiptAction:
         delegate_action: Delegate action details (for Delegate actions)
     """
 
-    account_id: str
     transactions_type: ActionType
     # Transaction
     deposit: Optional[str] = None
@@ -393,6 +392,8 @@ class ReceiptAction:
     # Delegate
     signature: Optional[str] = field(default=None)
     delegate_action: Optional[ReceiptDelegateAction] = field(default=None)
+
+    account_id: Optional[str] = None
 
     @classmethod
     def build(cls, data: dict) -> "ReceiptAction":
