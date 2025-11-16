@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 base58 = "^2.1.1"
-python = ">=3.9,<3.12"
+python = ">=3.9,<4"
 frozenlist = "^1.4.1"
 pynacl = "^1.5.0"
 loguru = "^0.7.2"
