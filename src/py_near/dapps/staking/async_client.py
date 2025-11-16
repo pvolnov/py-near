@@ -12,6 +12,13 @@ CONTRACT_ID = {
 
 
 class Staking(DappClient):
+    """
+    Client for interacting with staking operations on NEAR.
+
+    Provides methods for staking NEAR, unstaking, transferring staked tokens,
+    and managing staking-related operations.
+    """
+
     async def transfer(
         self,
         receiver_id: str,
@@ -20,13 +27,19 @@ class Staking(DappClient):
         nowait: bool = False,
     ):
         """
-        Transfer hNEAR to account
+        Transfer staked tokens (hNEAR) to another account.
 
-        :param receiver_id: receiver account id
-        :param amount: amount in yoctoNEAR
-        :param memo: comment
-        :param nowait if True, method will return before transaction is confirmed
-        :return: transaction hash ot TransactionResult
+        Args:
+            receiver_id: Receiver account ID
+            amount: Amount to transfer as float
+            memo: Optional memo/comment for the transfer
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Raises:
+            NotEnoughBalance: If sender has insufficient balance
         """
 
         try:
@@ -54,13 +67,16 @@ class Staking(DappClient):
         nowait: bool = False,
     ):
         """
-        Transfer hNEAR to account and call ft_on_transfer() method in receiver contract
+        Transfer staked tokens and call ft_on_transfer() on receiver contract.
 
-        :param receiver_id: receiver account id
-        :param amount: amount in yoctoNEAR
-        :param memo: comment
-        :param nowait if True, method will return before transaction is confirmed
-        :return: transaction hash ot TransactionResult
+        Args:
+            receiver_id: Receiver account/contract ID
+            amount: Amount to transfer as integer
+            memo: Optional memo/comment for the transfer
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         return await self._account.function_call(
             CONTRACT_ID[self._account.chain_id],
@@ -76,11 +92,13 @@ class Staking(DappClient):
 
     async def get_staking_amount(self, account_id: str = None) -> int:
         """
-        Get staking balance of account.
+        Get staking balance for an account.
 
-        :param account_id: account id
-        :param nowait if True, method will return before transaction is confirmed
-        :return: int balance in yoctoNEAR
+        Args:
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            Staking balance in yoctoNEAR (0 if account has no staked tokens)
         """
         if account_id is None:
             account_id = self._account.account_id
@@ -97,10 +115,13 @@ class Staking(DappClient):
 
     async def get_user(self, account_id: str = None) -> Optional[StakingData]:
         """
-        Get user staking parameters
+        Get user staking parameters and information.
 
-        :param account_id: account id
-        :return: StakingData
+        Args:
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            StakingData containing staking parameters, or None if not found
         """
         if account_id is None:
             account_id = self._account.account_id
@@ -116,11 +137,14 @@ class Staking(DappClient):
 
     async def stake(self, amount: int, nowait: bool = False):
         """
-        Deposit staking for account
+        Deposit NEAR for staking.
 
-        :param amount: in amount of yoctoNEAR
-        :param nowait: if True, method will return before transaction is confirmed
-        :return: transaction hash or TransactionResult
+        Args:
+            amount: Amount to stake in yoctoNEAR
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         return await self._account.function_call(
             CONTRACT_ID[self._account.chain_id],
@@ -132,11 +156,17 @@ class Staking(DappClient):
 
     async def unstake(self, amount: int, nowait: bool = False):
         """
-        Withdraw from staking
+        Withdraw NEAR from staking.
 
-        :param amount: in amount of yoctoNEAR
-        :param nowait: if True, method will return before transaction is confirmed
-        :return: transaction hash or TransactionResult
+        Args:
+            amount: Amount to unstake in yoctoNEAR
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Raises:
+            NotEnoughBalance: If account has insufficient staked balance
         """
         try:
             return await self._account.function_call(
@@ -153,10 +183,13 @@ class Staking(DappClient):
 
     async def receive_dividends(self, nowait=False):
         """
-        Receive dividends
+        Receive staking dividends/rewards.
 
-        :param nowait: if True, method will return before transaction is confirmed
-        :return: transaction hash ot TransactionResult
+        Args:
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         return await self._account.function_call(
             CONTRACT_ID[self._account.chain_id],

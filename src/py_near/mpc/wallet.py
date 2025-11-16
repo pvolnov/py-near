@@ -27,6 +27,13 @@ AUTH_CLASS = {
 
 
 class MPCWallet:
+    """
+    Multi-Party Computation (MPC) wallet client for HOT Protocol.
+
+    Provides methods for managing MPC wallets, signing messages, and interacting
+    with HOT Protocol's wallet registration system.
+    """
+
     derive: bytes
     near_account: Account
     hot_rpc: str
@@ -39,10 +46,19 @@ class MPCWallet:
         derive: Optional[bytes] = None,
     ):
         """
-        :param near_account: Near account
-        :param derive: Derived key for wallet
-        :param hot_rpc: Hot RPC url
-        :param default_root_pk: Default auth key for HOT Protocol, if provided, derive = sha256(default_root_pk.public_key).digest()
+        Initialize MPC wallet instance.
+
+        Args:
+            near_account: NEAR account instance for blockchain interactions
+            default_root_pk: Default authentication key for HOT Protocol (32 bytes).
+                If provided, derive is automatically calculated as
+                sha256(default_root_pk.public_key).digest()
+            hot_rpc: HOT Protocol RPC endpoint URL
+            derive: Derived key for wallet (required if default_root_pk is not provided)
+
+        Raises:
+            ValueError: If default_root_pk is not 32 bytes, or if neither
+                default_root_pk nor derive is provided
         """
         self.near_account = near_account
         if default_root_pk:
@@ -61,6 +77,15 @@ class MPCWallet:
         self._client = httpx.AsyncClient()
 
     def derive_private_key(self, gen=0):
+        """
+        Derive a private key for a specific generation.
+
+        Args:
+            gen: Generation number (0 for root key, higher for derived keys)
+
+        Returns:
+            SigningKey instance for the derived private key
+        """
         private_key = self.default_root_pk
         for _ in range(gen):
             private_key = sha256(private_key).digest()
@@ -71,9 +96,21 @@ class MPCWallet:
 
     @property
     def wallet_id(self):
+        """
+        Get wallet ID derived from the derive key.
+
+        Returns:
+            Base58-encoded wallet ID string
+        """
         return base58.b58encode(sha256(self.derive).digest()).decode("utf-8")
 
     async def get_wallet(self):
+        """
+        Get wallet information from the blockchain.
+
+        Returns:
+            WalletModel instance if wallet exists, None otherwise
+        """
         wallet = await self.near_account.view_function(
             _WALLET_REGISTER, "get_wallet", args={"wallet_id": self.wallet_id}
         )
@@ -82,8 +119,17 @@ class MPCWallet:
 
     async def create_wallet_with_keys_auth(self, public_key: bytes, key_gen=1):
         """
-        Create wallet with keys.auth.hot.tg auth method.
-        :param public_key: Public key for auth future signs on keys.auth.hot.tg
+        Create wallet with keys.auth.hot.tg authentication method.
+
+        Args:
+            public_key: Public key for future authentication signatures on keys.auth.hot.tg
+            key_gen: Key generation number (default: 1)
+
+        Returns:
+            Dictionary containing wallet creation response
+
+        Raises:
+            ValueError: If wallet already exists with a different auth method
         """
         wallet = await self.get_wallet()
         if wallet and wallet.access_list[0].account_id != "default.auth.hot.tg":
@@ -106,8 +152,20 @@ class MPCWallet:
         timeout=30,
     ):
         """
-        Create wallet with keys.auth.hot.tg auth method.
-        :param public_key: Public key for auth future signs on keys.auth.hot.tg
+        Create wallet with specified authentication method.
+
+        Args:
+            auth_account_id: Authentication account ID (e.g., "keys.auth.hot.tg")
+            metadata: Optional metadata string
+            auth_to_add_msg: Optional message for authentication setup
+            key_gen: Key generation number (default: 1)
+            timeout: Request timeout in seconds (default: 30)
+
+        Returns:
+            Dictionary containing wallet creation response
+
+        Raises:
+            ValueError: If wallet already exists with a different auth method
         """
         wallet = await self.get_wallet()
         if wallet and wallet.access_list[0].account_id != "default.auth.hot.tg":
@@ -142,6 +200,15 @@ class MPCWallet:
         return s.json()
 
     async def get_ecdsa_public_key(self, timeout=10) -> bytes:
+        """
+        Get ECDSA public key from HOT RPC.
+
+        Args:
+            timeout: Request timeout in seconds (default: 10)
+
+        Returns:
+            ECDSA public key as bytes
+        """
         resp = (
             await self._client.post(
                 f"{self.hot_rpc}/public_key",
@@ -154,6 +221,15 @@ class MPCWallet:
 
     @property
     def public_key(self):
+        """
+        Get public key (not yet implemented).
+
+        Returns:
+            Public key (currently raises NotImplementedError)
+
+        Raises:
+            NotImplementedError: Public key calculation is not implemented yet
+        """
         # TODO Calculate with Rust Code
         raise NotImplementedError("Public key calculation is not implemented yet")
 
@@ -165,6 +241,24 @@ class MPCWallet:
         auth_methods: List[AuthContract] = None,
         timeout=10,
     ):
+        """
+        Sign a message using MPC wallet.
+
+        Args:
+            msg_hash: Hash of the message to sign (bytes)
+            message_body: Optional raw message body (bytes)
+            curve_type: Curve type for signing (default: SECP256K1)
+            auth_methods: List of authentication contracts for signing
+            timeout: Request timeout in seconds (default: 10)
+
+        Returns:
+            Hexadecimal signature string
+
+        Raises:
+            ValueError: If default_root_pk is not set, or if auth_methods count
+                doesn't match wallet access list, or if server returns invalid response
+            BadSignature: If public key cannot be recovered from signature
+        """
         if not self.default_root_pk:
             raise ValueError("Default auth key is required")
         wallet = await self.get_wallet()
@@ -214,6 +308,19 @@ class MPCWallet:
     async def add_new_access_rule(
         self, access: WalletAccessModel, auth_contracts: List[AuthContract]
     ):
+        """
+        Add a new access rule to the wallet.
+
+        Args:
+            access: WalletAccessModel containing access rule configuration
+            auth_contracts: List of authentication contracts for signing the transaction
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Raises:
+            ValueError: If auth method types don't match wallet access list
+        """
         wallet = await self.get_wallet()
         access_json = access.model_dump_json()
         message_body = f"ADD_AUTH_METHOD:{access_json}:{self.wallet_id}".encode("utf-8")
@@ -240,6 +347,20 @@ class MPCWallet:
     async def remove_access_rule(
         self, access_id: int, auth_contracts: List[AuthContract]
     ):
+        """
+        Remove an access rule from the wallet.
+
+        Args:
+            access_id: ID of the access rule to remove
+            auth_contracts: List of authentication contracts for signing the transaction
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Raises:
+            ValueError: If auth methods count doesn't match wallet access list,
+                or if auth method types don't match
+        """
         wallet = await self.get_wallet()
         message_body = f"REMOVE_AUTH_METHOD:{access_id}:{self.wallet_id}".encode(
             "utf-8"

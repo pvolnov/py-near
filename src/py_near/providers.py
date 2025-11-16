@@ -46,10 +46,24 @@ PROVIDER_CODE_TO_EXCEPTION = {
 
 
 class JsonProvider(object):
+    """
+    JSON-RPC provider for interacting with NEAR blockchain nodes.
+
+    Handles RPC requests, transaction broadcasting, and response parsing.
+    Supports multiple RPC endpoints with automatic failover and health checking.
+    """
+
     def __init__(self, rpc_addr, allow_broadcast=True, timeout=TIMEOUT_WAIT_RPC):
         """
-        :param rpc_addr: str or list of str
-        :param allow_broadcast: bool - submit signed transaction to all RPCs
+        Initialize JSON-RPC provider.
+
+        Args:
+            rpc_addr: RPC endpoint URL(s). Can be:
+                - Single URL string
+                - List of URL strings
+                - Tuple (host, port) for HTTP endpoint
+            allow_broadcast: If True, submit signed transactions to all available RPCs
+            timeout: Request timeout in seconds (default: 600)
         """
         if isinstance(rpc_addr, tuple):
             self._rpc_addresses = ["http://{}:{}".format(*rpc_addr)]
@@ -66,9 +80,19 @@ class JsonProvider(object):
         )
 
     async def shutdown(self):
+        """
+        Shutdown the provider and close connections.
+
+        Closes the HTTP client and cleans up resources.
+        """
         pass
 
     async def _check_available_rpcs(self):
+        """
+        Check and update list of available RPC endpoints.
+
+        Removes RPCs that are not responding or are out of sync.
+        """
         available_rpcs = []
         for rpc_addr in self._rpc_addresses:
             try:
@@ -122,6 +146,15 @@ class JsonProvider(object):
 
     @staticmethod
     def most_frequent_by_hash(array):
+        """
+        Find the most frequent element in an array by hash.
+
+        Args:
+            array: List of hashable elements
+
+        Returns:
+            The most frequently occurring element
+        """
         counter = Counter(array)
         most_frequent = counter.most_common(1)[0][0]
         return most_frequent
@@ -129,6 +162,19 @@ class JsonProvider(object):
     async def call_rpc_request(
         self, method, params, broadcast=False, threshold: int = 0
     ):
+        """
+        Make an RPC request to the NEAR network.
+
+        Args:
+            method: RPC method name
+            params: Method parameters
+            broadcast: If True, send request to all available RPCs
+            threshold: Minimum number of nodes that must return the same result
+                (for consensus verification). If 0, uses first successful response.
+
+        Returns:
+            RPC response dictionary
+        """
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         async def f(rpc_call_addr):
@@ -209,6 +255,15 @@ class JsonProvider(object):
 
     @staticmethod
     def get_error_from_response(content: dict):
+        """
+        Parse error from RPC response and convert to appropriate exception.
+
+        Args:
+            content: RPC response dictionary
+
+        Returns:
+            Exception instance if error found, None otherwise
+        """
         if "error" in content:
             error_code = content["error"].get("cause", {}).get("name", "")
             body = content["error"]["data"]
@@ -233,6 +288,22 @@ class JsonProvider(object):
             return error
 
     async def json_rpc(self, method, params, broadcast=False, threshold=None):
+        """
+        Execute JSON-RPC call and parse response.
+
+        Args:
+            method: RPC method name
+            params: Method parameters
+            broadcast: If True, send request to all available RPCs
+            threshold: Minimum number of nodes that must return the same result
+
+        Returns:
+            Result from RPC response
+
+        Raises:
+            RpcEmptyResponse: If RPC returns empty response
+            Various provider exceptions: Based on error codes in response
+        """
         content = await self.call_rpc_request(
             method, params, broadcast=broadcast, threshold=threshold
         )
@@ -246,10 +317,17 @@ class JsonProvider(object):
 
     async def send_tx(self, signed_tx: str):
         """
-        Send a signed transaction to the network and return the hash of the transaction
-        :param signed_tx: base64 encoded signed transaction, str.
-        :param timeout: rpc request timeout
-        :return:
+        Send a signed transaction to the network asynchronously.
+
+        Args:
+            signed_tx: Base64-encoded signed transaction string
+
+        Returns:
+            Transaction hash string
+
+        Note:
+            This method does not wait for transaction confirmation.
+            Use send_tx_and_wait() to wait for execution.
         """
         return await self.json_rpc(
             "broadcast_tx_async",
@@ -259,10 +337,17 @@ class JsonProvider(object):
 
     async def send_tx_included(self, signed_tx: str):
         """
-        Send a signed transaction to the network and return the hash of the transaction
-        :param signed_tx: base64 encoded signed transaction, str.
-        :param timeout: rpc request timeout
-        :return:
+        Send a signed transaction and wait until it's included in a block.
+
+        Args:
+            signed_tx: Base64-encoded signed transaction string
+
+        Returns:
+            Transaction hash string, or None if transaction was not included
+
+        Note:
+            This method waits for inclusion but not for final execution.
+            Use send_tx_and_wait() to wait for full execution.
         """
         try:
             return await self.json_rpc(
@@ -275,6 +360,19 @@ class JsonProvider(object):
             return None
 
     async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
+        """
+        Wait for a transaction to be processed by polling.
+
+        Args:
+            trx_hash: Transaction hash to wait for
+            receiver_id: Account ID that received the transaction
+
+        Returns:
+            TransactionResult when transaction is found
+
+        Raises:
+            RPCTimeoutError: If transaction is not found after multiple attempts
+        """
         for _ in range(6):
             await asyncio.sleep(5)
             try:
@@ -295,10 +393,18 @@ class JsonProvider(object):
         receiver_id: Optional[str] = None,
     ) -> TransactionResult:
         """
-        Send a signed transaction to the network and wait for it to be included in a block
-        :param signed_tx: base64 encoded signed transaction, str
-        :param timeout: rpc request timeout
-        :return:
+        Send a signed transaction and wait for full execution.
+
+        Args:
+            signed_tx: Base64-encoded signed transaction string
+            trx_hash: Optional transaction hash (for fallback polling)
+            receiver_id: Optional receiver account ID (for fallback polling)
+
+        Returns:
+            TransactionResult containing execution outcome
+
+        Note:
+            If RPC timeout occurs, falls back to polling with wait_for_trx()
         """
         try:
             res = await self.json_rpc(
@@ -312,6 +418,15 @@ class JsonProvider(object):
                 return await self.wait_for_trx(trx_hash, receiver_id)
 
     async def get_status(self):
+        """
+        Get network status from RPC node.
+
+        Returns:
+            Dictionary containing network status information
+
+        Raises:
+            RpcNotAvailableError: If no RPC nodes are available
+        """
         for rpc_addr in self._available_rpcs.copy():
             try:
                 data = {
@@ -338,12 +453,37 @@ class JsonProvider(object):
         raise RpcNotAvailableError("RPC not available")
 
     async def get_validators(self):
+        """
+        Get current validators from the network.
+
+        Returns:
+            Dictionary containing validator information
+        """
         return await self.json_rpc("validators", [None])
 
     async def query(self, query_object):
+        """
+        Execute a query on the blockchain state.
+
+        Args:
+            query_object: Query parameters dictionary
+
+        Returns:
+            Query result dictionary
+        """
         return await self.json_rpc("query", query_object)
 
     async def get_account(self, account_id, finality="optimistic"):
+        """
+        Get account information.
+
+        Args:
+            account_id: Account ID to query
+            finality: Finality level ("optimistic", "near-final", or "final")
+
+        Returns:
+            Dictionary containing account information (balance, code_hash, etc.)
+        """
         return await self.json_rpc(
             "query",
             {
@@ -354,6 +494,16 @@ class JsonProvider(object):
         )
 
     async def get_access_key_list(self, account_id, finality="optimistic"):
+        """
+        Get list of access keys for an account.
+
+        Args:
+            account_id: Account ID to query
+            finality: Finality level ("optimistic", "near-final", or "final")
+
+        Returns:
+            Dictionary containing list of access keys
+        """
         return await self.json_rpc(
             "query",
             {
@@ -365,11 +515,16 @@ class JsonProvider(object):
 
     async def get_access_key(self, account_id, public_key, finality="optimistic"):
         """
+        Get access key information for a specific public key.
 
-        :param account_id:
-        :param public_key:
-        :param finality:
-        :return: {'block_hash': '..', 'block_height': int, 'nonce': int, 'permission': 'FullAccess'}
+        Args:
+            account_id: Account ID to query
+            public_key: Public key (base58 string)
+            finality: Finality level ("optimistic", "near-final", or "final")
+
+        Returns:
+            Dictionary containing access key info:
+            {'block_hash': str, 'block_height': int, 'nonce': int, 'permission': str|dict}
         """
         return await self.json_rpc(
             "query",
@@ -390,6 +545,20 @@ class JsonProvider(object):
         block_id: Optional[int] = None,
         threshold: Optional[int] = None,
     ):
+        """
+        Call a view function on a smart contract.
+
+        Args:
+            account_id: Contract account ID
+            method_name: Method name to call
+            args: Serialized method arguments (bytes, will be base64 encoded)
+            finality: Finality level (used if block_id is not provided)
+            block_id: Optional block ID to query at specific height
+            threshold: Minimum number of nodes that must return the same result
+
+        Returns:
+            Dictionary containing view function result
+        """
         body = {
             "request_type": "call_function",
             "account_id": account_id,
@@ -403,32 +572,100 @@ class JsonProvider(object):
         return await self.json_rpc("query", body, threshold=threshold)
 
     async def get_block(self, block_id):
+        """
+        Get block information.
+
+        Args:
+            block_id: Block hash or block height
+
+        Returns:
+            Dictionary containing block information
+        """
         return await self.json_rpc("block", [block_id])
 
     async def get_chunk(self, chunk_id):
+        """
+        Get chunk information.
+
+        Args:
+            chunk_id: Chunk hash
+
+        Returns:
+            Dictionary containing chunk information
+        """
         return await self.json_rpc("chunk", [chunk_id])
 
     async def get_tx(self, tx_hash, tx_recipient_id) -> TransactionResult:
+        """
+        Get transaction information.
+
+        Args:
+            tx_hash: Transaction hash
+            tx_recipient_id: Account ID that received the transaction
+
+        Returns:
+            TransactionResult containing transaction data and outcomes
+        """
         return TransactionResult(
             **await self.json_rpc("tx", [tx_hash, tx_recipient_id])
         )
 
     async def get_tx_status(self, tx_hash, tx_recipient_id) -> TransactionResult:
+        """
+        Get transaction status (experimental method).
+
+        Args:
+            tx_hash: Transaction hash
+            tx_recipient_id: Account ID that received the transaction
+
+        Returns:
+            TransactionResult containing transaction status
+        """
         return TransactionResult(
             **await self.json_rpc("EXPERIMENTAL_tx_status", [tx_hash, tx_recipient_id])
         )
 
     async def get_changes_in_block(self, changes_in_block_request):
+        """
+        Get state changes in a block (experimental method).
+
+        Args:
+            changes_in_block_request: Dictionary with block change request parameters
+
+        Returns:
+            Dictionary containing state changes
+        """
         return await self.json_rpc(
             "EXPERIMENTAL_changes_in_block", changes_in_block_request
         )
 
     async def get_validators_ordered(self, block_hash):
+        """
+        Get ordered validators for a block (experimental method).
+
+        Args:
+            block_hash: Block hash
+
+        Returns:
+            Dictionary containing ordered validator information
+        """
         return await self.json_rpc("EXPERIMENTAL_validators_ordered", [block_hash])
 
     async def get_light_client_proof(
         self, outcome_type, tx_or_receipt_id, sender_or_receiver_id, light_client_head
     ):
+        """
+        Get light client proof for a transaction or receipt.
+
+        Args:
+            outcome_type: Type of outcome ("transaction" or "receipt")
+            tx_or_receipt_id: Transaction hash or receipt ID
+            sender_or_receiver_id: Sender ID (for transaction) or receiver ID (for receipt)
+            light_client_head: Light client head block hash
+
+        Returns:
+            Dictionary containing light client proof
+        """
         if outcome_type == "receipt":
             params = {
                 "type": "receipt",
@@ -446,4 +683,13 @@ class JsonProvider(object):
         return await self.json_rpc("light_client_proof", params)
 
     async def get_next_light_client_block(self, last_block_hash):
+        """
+        Get next light client block.
+
+        Args:
+            last_block_hash: Hash of the last known block
+
+        Returns:
+            Dictionary containing next light client block information
+        """
         return await self.json_rpc("next_light_client_block", [last_block_hash])

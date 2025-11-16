@@ -10,14 +10,25 @@ from typing import Optional
 
 
 class FT(DappClient):
+    """
+    Client for interacting with fungible tokens (FT) on NEAR.
+
+    Provides methods for querying balances, transferring tokens, and managing
+    storage deposits for FT contracts following the NEP-141 standard.
+    """
+
     async def get_ft_balance(
         self, ft: FtModel, account_id: Optional[str] = None
     ) -> float:
         """
-        Get fungible token balance
-        :param ft: fungible token model FT.USDC
-        :param account_id: account id
-        :return: amount // 10**ft.decimal
+        Get fungible token balance for an account.
+
+        Args:
+            ft: Fungible token model (e.g., FT.USDC)
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            Token balance as float (amount divided by 10^ft.decimal)
         """
         if not account_id:
             account_id = self._account.account_id
@@ -29,10 +40,14 @@ class FT(DappClient):
         self, contract_id: str, account_id: Optional[str] = None
     ) -> int:
         """
-        Get fungible token raw balance
-        :param contract_id: fungible token contract adress
-        :param account_id: account id
-        :return: amount
+        Get fungible token raw balance (without decimal conversion).
+
+        Args:
+            contract_id: Fungible token contract address
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            Raw token balance as integer (in smallest token unit)
         """
         if not account_id:
             account_id = self._account.account_id
@@ -49,9 +64,13 @@ class FT(DappClient):
 
     async def get_metadata(self, ft: Union[FtModel, str]) -> FtTokenMetadata:
         """
-        Get fungible token metadata
-        :param ft: fungible token model FT.USDC
-        :return: FtTokenMetadata
+        Get fungible token metadata.
+
+        Args:
+            ft: Fungible token model (e.g., FT.USDC) or contract ID string
+
+        Returns:
+            FtTokenMetadata containing token name, symbol, decimals, etc.
         """
         if isinstance(ft, FtModel):
             contract_id = ft.contract_id
@@ -77,14 +96,23 @@ class FT(DappClient):
         nowait: bool = False,
     ):
         """
-        Transfer fungible token to account
+        Transfer fungible tokens to another account.
 
-        :param ft: fungible token model FT.USDC
-        :param receiver_id: receiver account id
-        :param amount: float amount to transfer. 1 for 1 USDC
-        :param memo: comment
-        :param force_register: use storage_deposit() if account is not registered
-        :return: transaction hash ot TransactionResult
+        Args:
+            ft: Fungible token model (e.g., FT.USDC)
+            receiver_id: Receiver account ID
+            amount: Amount to transfer as float (e.g., 1.0 for 1 USDC)
+            memo: Optional memo/comment for the transfer
+            force_register: If True, automatically register receiver with storage_deposit
+                if they are not registered
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Raises:
+            NotRegisteredError: If receiver is not registered and force_register is False
+            NotEnoughBalance: If sender has insufficient balance
         """
         if (
             force_register
@@ -122,15 +150,23 @@ class FT(DappClient):
         nowait: bool = False,
     ):
         """
-        Transfer fungible token to account and call ft_on_transfer() method in receiver contract
+        Transfer fungible tokens and call ft_on_transfer() on receiver contract.
 
-        :param ft: fungible token model FT.USDC
-        :param receiver_id: receiver account id
-        :param amount: float amount to transfer. 1 for 1 USDC
-        :param memo: comment
-        :param force_register: use storage_deposit() if account is not registered
-        :param nowait if True, method will return before transaction is confirmed
-        :return: transaction hash ot TransactionResult
+        This method transfers tokens and then calls the ft_on_transfer callback
+        method on the receiver's contract, enabling atomic token transfers with
+        contract logic execution.
+
+        Args:
+            ft: Fungible token model (e.g., FT.USDC)
+            receiver_id: Receiver account/contract ID
+            amount: Amount to transfer as float (e.g., 1.0 for 1 USDC)
+            memo: Optional memo/comment for the transfer
+            force_register: If True, automatically register receiver with storage_deposit
+                if they are not registered
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         if (
             force_register
@@ -153,12 +189,17 @@ class FT(DappClient):
         self, ft: Union[FtModel, str], account_id: Optional[str] = None
     ) -> int:
         """
-        Get storage balance of account. The balance must be greater than 0.01 NEAR for some smart contracts
-        in order for the recipient to accept the token
+        Get storage balance for an account on an FT contract.
 
-        :param contract_id: fungible token contract_id
-        :param account_id: account id
-        :return: int balance in yoctoNEAR, 1_000_000_000_000_000_000_000_000 for 1 NEAR
+        Some FT contracts require accounts to have a storage deposit (typically
+        >= 0.01 NEAR) before they can receive tokens.
+
+        Args:
+            ft: Fungible token model (e.g., FT.USDC) or contract ID string
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            Storage balance in yoctoNEAR (0 if account is not registered)
         """
         if not account_id:
             account_id = self._account.account_id
@@ -184,12 +225,18 @@ class FT(DappClient):
         amount: int = NEAR // 50,
     ):
         """
-        Deposit storage balance for account. The balance must be greater than 0.01 NEAR for some smart contracts
+        Deposit storage balance for an account on an FT contract.
 
-        :param ft: fungible token model FT.USDC
-        :param account_id: receiver account id
-        :param amount: in amount of yoctoNEAR
-        :return:
+        Registers an account with the FT contract and deposits NEAR for storage.
+        This is required before an account can receive tokens from some contracts.
+
+        Args:
+            ft: Fungible token model (e.g., FT.USDC) or contract ID string
+            account_id: Account ID to register. If None, uses the current account.
+            amount: Amount to deposit in yoctoNEAR (default: 0.02 NEAR)
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         if not account_id:
             account_id = self._account.account_id

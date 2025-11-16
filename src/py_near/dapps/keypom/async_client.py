@@ -6,30 +6,41 @@ _KEYPOM_CONTRACT_ID = "keypom.near"
 
 class KeyPom(DappClient):
     """
-    Client to keypom.near contract
-    With this contract you can send NEAR and fungible tokens to linkdrop and receive FT/NFT/NEAR from other linkdrops
+    Client for interacting with KeyPom linkdrop contract.
+
+    KeyPom allows sending NEAR and fungible tokens via linkdrops and receiving
+    FT/NFT/NEAR from other linkdrops. This client provides methods for creating
+    drops and claiming linkdrops.
     """
 
     def __init__(self, account, contract_id=_KEYPOM_CONTRACT_ID):
         """
+        Initialize KeyPom client.
 
-        :param account:
-        :param contract_id: keypom contract id
-        :param network: "mainnet" or "testnet"
+        Args:
+            account: Account instance for interacting with the contract
+            contract_id: KeyPom contract ID (default: "keypom.near")
+
+        Raises:
+            ValueError: If chain_id is not "mainnet" (only mainnet is supported)
         """
         if account.chain_id != "mainnet":
             raise ValueError("Only mainnet is supported")
         super().__init__(account)
         self.contract_id = contract_id
 
-    def create_drop(
+    async def create_drop(
         self,
         drop: CreateDropModel,
     ) -> str:
         """
+        Create a new linkdrop.
 
-        :param drop: CreateDropModel
-        :return: drop id
+        Args:
+            drop: CreateDropModel containing drop configuration
+
+        Returns:
+            Drop ID string
         """
         res = await self._account.view_function(
             self.contract_id,
@@ -40,10 +51,14 @@ class KeyPom(DappClient):
 
     async def claim(self, account_id: str, password: str):
         """
+        Claim a linkdrop.
 
-        :param account_id: linkdrop receiver account id
-        :param password: linkdrop password
-        :return:
+        Args:
+            account_id: Account ID that will receive the linkdrop
+            password: Linkdrop password/secret
+
+        Returns:
+            ViewFunctionResult from the claim operation
         """
         return await self._account.view_function(
             self.contract_id,

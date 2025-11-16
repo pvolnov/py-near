@@ -7,6 +7,19 @@ if TYPE_CHECKING:
 
 
 class DappClient:
+    """
+    Base client class for dApp interactions.
+
+    Provides a common interface for dApp-specific clients that interact with
+    smart contracts on the NEAR blockchain.
+    """
+
     def __init__(self, account: "Account"):
+        """
+        Initialize dApp client.
+
+        Args:
+            account: Account instance for interacting with the blockchain
+        """
         self._account = account
 
