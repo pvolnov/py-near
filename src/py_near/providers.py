@@ -75,12 +75,12 @@ class JsonProvider(object):
         self._available_rpcs = self._rpc_addresses.copy()
         self._last_rpc_addr_check = 0
         self.allow_broadcast = allow_broadcast
-        self._timeout = aiohttp.ClientTimeout(total=timeout)
         self._headers = headers or dict()
-        self._connector = aiohttp.TCPConnector(limit=1000, limit_per_host=200)
-        self._client = aiohttp.ClientSession(
-            connector=self._connector, timeout=self._timeout
-        )
+        self.timeout = timeout
+        self._timeout: aiohttp.ClientTimeout = None
+        self._connector: aiohttp.TCPConnector = None
+        self._client: aiohttp.ClientSession = None
+
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -89,6 +89,13 @@ class JsonProvider(object):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit - closes connections."""
         await self.shutdown()
+
+    async def startup(self):
+        self._timeout = aiohttp.ClientTimeout(total=self.timeout)
+        self._connector = aiohttp.TCPConnector(limit=1000, limit_per_host=200)
+        self._client = aiohttp.ClientSession(
+            connector=self._connector, timeout=self._timeout
+        )
 
     async def shutdown(self):
         """
@@ -107,6 +114,8 @@ class JsonProvider(object):
 
         Removes RPCs that are not responding or are out of sync.
         """
+        if not self._client:
+            await self.startup()
         available_rpcs = []
         for rpc_addr in self._rpc_addresses:
             try:
@@ -190,6 +199,8 @@ class JsonProvider(object):
         Returns:
             RPC response dictionary
         """
+        if not self._client:
+            await self.startup()
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         async def f(rpc_call_addr):
@@ -463,7 +474,7 @@ class JsonProvider(object):
                         text = await r.text()
                         return json.loads(text)["result"]
             except ConnectionError as e:
-                logger.error(f"Rpc get status error: {e}")
+                logger.error(f"Rpc get status error: {rpc_addr} {e}")
             except Exception as e:
                 logger.error(e)
 

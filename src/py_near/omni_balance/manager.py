@@ -223,7 +223,8 @@ class OmniBalance:
             Self instance for method chaining
         """
         self._session = aiohttp.ClientSession()
-        self._account = await self._get_account()
+        self._account = Account(self.account_id, self.private_key, rpc_addr=self.rpc_url)
+        await self._account.startup()
         return self
 
     async def shutdown(self) -> None:
@@ -331,10 +332,6 @@ class OmniBalance:
             datetime.datetime.now(datetime.UTC)
             + datetime.timedelta(seconds=deadline_seconds)
         ).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
-    async def _get_account(self) -> Account:
-        """Get Account instance."""
-        return Account(self.account_id, self.private_key, rpc_addr=self.rpc_url)
 
     async def register_token_storage(
         self, token_id: str, other_account: Optional[str] = None
