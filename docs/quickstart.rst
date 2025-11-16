@@ -49,12 +49,12 @@ Next step: send 2 NEAR to `bob.near` no waiting for transaction confirmation
     print(transaction_hash)
 
 
-Next step: send 0.1 NEAR by phone number
+Next step: send 2 NEAR and wait until transaction is included in a block
 
 .. code:: python
 
-    tr = await acc.phone.send_near_to_phone("+15626200110", NEAR // 10)
-    print(tr.transaction.hash)
+    transaction_hash = await acc.send_money("bob.near", NEAR * 2, included=True)
+    print(transaction_hash)
 
 Summary
 ----------------
@@ -79,9 +79,6 @@ Summary
         print(tr.transaction.hash)
         print(tr.logs)
 
-        tr = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
-        print(tr.transaction.hash)
-
     asyncio.run(main())
 
 
@@ -98,12 +95,19 @@ Add 2 new full access keys:
 
 .. code:: python
 
+    from nacl.signing import SigningKey
+    from nacl.encoding import RawEncoder
+    import base58
+
     acc = Account("bob.near", private_key1)
+    await acc.startup()
 
     for i in range(2):
-        signer = InMemorySigner.from_random(AccountId("bob.near"), KeyType.ED25519)
-        await acc.add_full_access_public_key(str(signer.public_key))
-        print(signer.secret_key)
+        signing_key = SigningKey.generate()
+        public_key = base58.b58encode(signing_key.verify_key.encode()).decode("utf-8")
+        await acc.add_full_access_public_key(public_key)
+        private_key_bytes = signing_key.encode(encoder=RawEncoder)
+        print(f"ed25519:{base58.b58encode(private_key_bytes).decode('utf-8')}")
 
 
 Now we can call transactions in parallel
@@ -117,5 +121,5 @@ Now we can call transactions in parallel
         asyncio.create_task(acc.send_money("alisa.near", 1)),
         asyncio.create_task(acc.send_money("alisa.near", 1)),
     ]
-    for t in task:
+    for t in tasks:
         await t

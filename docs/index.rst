@@ -9,15 +9,15 @@ Welcome to py-near's documentation!
    quickstart.rst
    account.rst
 
-   clients/phone.rst
    clients/fungible-token.rst
    clients/staking.rst
    clients/delegate.rst
+   clients/omni-balance.rst
 
 .. include:: quickstart.rst
 .. include:: account.rst
-.. include:: clients/phone.rst
 .. include:: clients/fungible-token.rst
 .. include:: clients/staking.rst
 .. include:: clients/delegate.rst
+.. include:: clients/omni-balance.rst
 

@@ -21,11 +21,8 @@ Quick start
         print(await acc.get_balance("bob.near") / NEAR)
 
         transaction = await acc.send_money("bob.near", NEAR * 2)
-        print(tr.transaction.hash)
-        print(tr.logs)
-
-        transaction = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
-        print(tr.transaction.hash)
+        print(transaction.transaction.hash)
+        print(transaction.logs)
 
     asyncio.run(main())
 
@@ -49,7 +46,7 @@ Documentation
             asyncio.create_task(acc.send_money("alisa.near", 1)),
             asyncio.create_task(acc.send_money("alisa.near", 1)),
         ]
-        for t in task:
+        for t in tasks:
             await t
 
 
@@ -65,7 +62,7 @@ Documentation
             asyncio.create_task(acc.send_money("alisa.near", 1)),
             asyncio.create_task(acc.send_money("alisa.near", 1)),
         ]
-        for t in task:
+        for t in tasks:
             await t
 
 
@@ -107,13 +104,14 @@ Documentation
         print(state)
 
 
-.. function:: send_money(account_id: str, amount: int, nowait=False)
+.. function:: send_money(account_id: str, amount: int, nowait=False, included=False)
 
     Send money to account_id
 
     :param account_id: receiver account id
     :param amount: amount in yoctoNEAR
-    :param nowait: if nowait is True, return transaction hash, else wait execution
+    :param nowait: if nowait is True, return transaction hash, else wait execution (legacy, same as included)
+    :param included: if included is True, wait until transaction is included in a block, then return transaction hash
     :return: transaction hash or TransactionResult
 
     .. code:: python
@@ -121,31 +119,34 @@ Documentation
         await acc.send_money('bob.near', NEAR * 3)
 
 
-.. function:: view_function(contract_id: str, method_name: str, args: dict)
+.. function:: view_function(contract_id: str, method_name: str, args: dict, block_id=None, threshold=None)
 
     Call view function on smart contract. View function is read only function, it can't change state
 
     :param contract_id: smart contract account id
     :param method_name: method name to call
     :param args: json args to call method
-    :return: result of view function call
+    :param block_id: optional block ID to query at a specific block height
+    :param threshold: minimum number of nodes that must return the same result (for consensus verification)
+    :return: ViewFunctionResult containing the method result, logs, and block info
 
     .. code:: python
 
         result = await acc.view_function("usn.near", "ft_balance_of", {"account_id": "bob.near"})
-        print(result)
+        print(result.result)
 
 
-.. function:: function_call(contract_id: str, method_name: str, args: dict, gas=DEFAULT_ATTACHED_GAS, amount=0, nowait=False)
+.. function:: function_call(contract_id: str, method_name: str, args: dict, gas=DEFAULT_ATTACHED_GAS, amount=0, nowait=False, included=False)
 
     Call function on smart contract
 
-    :param contract_id: smart contract adress
+    :param contract_id: smart contract address
     :param method_name: call method name
     :param args: json params for method
     :param gas: amount of attachment gas
     :param amount: amount of attachment NEAR
-    :param nowait: if nowait is True, return transaction hash, else wait execution
+    :param nowait: if nowait is True, return transaction hash, else wait execution (legacy, same as included)
+    :param included: if included is True, wait until transaction is included in a block, then return transaction hash
     :return: transaction hash or TransactionResult
 
     .. code:: python
@@ -156,12 +157,12 @@ Documentation
 .. function:: create_account(account_id: str, public_key: Union[str, bytes], initial_balance: int, nowait=False)
 
     Create new account in subdomain of current account. For example, if current account is "test.near",
-        you can create "wwww.test.near"
+        you can create "sub.test.near"
 
     :param account_id: new account id
     :param public_key: add public key to new account
-    :param initial_balance: amount to transfer NEAR to new account
-    :param nowait: is nowait is True, return transaction hash, else wait execution
+    :param initial_balance: amount to transfer NEAR to new account in yoctoNEAR
+    :param nowait: if nowait is True, return transaction hash, else wait execution
     :return: transaction hash or TransactionResult
 
     .. code:: python
@@ -175,8 +176,8 @@ Documentation
 
     :param public_key: public_key to add
     :param receiver_id: smart contract account id
-    :param method_names: list of method names to allow
-    :param allowance: maximum amount of gas to use for this key
+    :param method_names: list of method names to allow (empty list means all methods)
+    :param allowance: maximum amount of gas to use for this key (in yoctoNEAR gas units, default is 25 TGas)
     :param nowait: if nowait is True, return transaction hash, else wait execution
     :return: transaction hash or TransactionResult
 
@@ -203,7 +204,7 @@ Documentation
     Delete public key from account
 
     :param public_key: public_key to delete
-    :param nowait: is nowait is True, return transaction hash, else wait execution
+    :param nowait: if nowait is True, return transaction hash, else wait execution
     :return: transaction hash or TransactionResult
 
     .. code:: python
@@ -226,14 +227,17 @@ Documentation
         await acc.deploy_contract(contract_code, nowait=True)
 
 
-.. function:: stake(contract_code: bytes, nowait=False)
+.. function:: stake(public_key: str, amount: str, nowait=False)
 
-    Stake NEAR on account. Account must have enough balance to be in validators pool
+    Stake NEAR tokens with a validator
 
-    :param public_key: public_key to stake
-    :param amount: amount of NEAR to stake
+    :param public_key: validator's public key to stake with
+    :param amount: amount of NEAR to stake (as string in yoctoNEAR)
     :param nowait: if nowait is True, return transaction hash, else wait execution
     :return: transaction hash or TransactionResult
+
+    .. note::
+        Account must have sufficient balance to meet validator pool requirements
 
 
 .. function:: get_balance(account_id: str = None)
@@ -249,15 +253,63 @@ Documentation
         print(result)
 
 
-.. property:: phone
-
-    Get client for phone.herewallet.near
-
-    :return: Phone(self)
-
-
 .. property:: ft
 
     Get client for fungible tokens
 
     :return: FT(self)
+
+.. function:: call_delegate_transaction(delegate_action: Union[DelegateAction, DelegateActionModel], signature: Union[bytes, str], nowait=False, included=False)
+
+    Execute a signed delegate action transaction
+
+    :param delegate_action: DelegateAction or DelegateActionModel to execute
+    :param signature: signature for the delegate action (bytes or base58 string)
+    :param nowait: if nowait is True, return transaction hash immediately (legacy, same as included)
+    :param included: if included is True, wait until transaction is included in a block, then return transaction hash
+    :return: transaction hash or TransactionResult
+
+    .. code:: python
+
+        from py_near_primitives import TransferAction
+        action = await acc.create_delegate_action(actions=[TransferAction(1)], receiver_id="illia.near")
+        sign = acc.sign_delegate_transaction(action)
+        res = await acc.call_delegate_transaction(delegate_action=action, signature=sign)
+
+.. function:: create_delegate_action(actions: List[Action], receiver_id, public_key: Optional[str] = None)
+
+    Create a delegate action from a list of actions
+
+    :param actions: list of actions to include in the delegate action
+    :param receiver_id: account ID that will receive the delegate action
+    :param public_key: optional public key to use for signing. If None, uses the first configured signer
+    :return: DelegateActionModel ready to be signed
+
+.. function:: sign_delegate_transaction(delegate_action: Union[DelegateAction, DelegateActionModel]) -> str
+
+    Sign a delegate action transaction
+
+    :param delegate_action: DelegateAction or DelegateActionModel to sign
+    :return: base58-encoded signature string
+
+    .. code:: python
+
+        signature = acc.sign_delegate_transaction(delegate_action)
+
+.. function:: use_global_contract(account_id: Optional[str] = None, contract_code_hash: Union[str, bytes, None] = None, nowait=False, included=False)
+
+    Use a global contract by account ID or code hash
+
+    :param account_id: account ID of the global contract to use
+    :param contract_code_hash: code hash of the global contract to use (32 bytes)
+    :param nowait: if nowait is True, return transaction hash immediately (legacy, same as included)
+    :param included: if included is True, wait until transaction is included in a block, then return transaction hash
+    :return: transaction hash or TransactionResult
+
+.. function:: shutdown()
+
+    Clean up async resources. Closes the RPC provider connection. Should be called when done using the account instance.
+
+    .. code:: python
+
+        await acc.shutdown()

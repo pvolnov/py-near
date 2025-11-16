@@ -30,8 +30,9 @@ Documentation
 
 .. class:: FT(DappClient)
 
-   Client to any NEP-141 contract`
-   With this contract you can send fungible tokens to any user
+   Client for interacting with fungible tokens (FT) on NEAR.
+   Provides methods for querying balances, transferring tokens, and managing
+   storage deposits for FT contracts following the NEP-141 standard.
 
     .. code:: python
 
@@ -41,36 +42,36 @@ Documentation
 
 
 
-.. function:: get_ft_balance(ft: FtModel, account_id: str)
+.. function:: get_ft_balance(ft: FtModel, account_id: Optional[str] = None)
 
     Get fungible token balance
 
-    :param ft: fungible token model FT.USDC
-    :param account_id: account id
-    :return: amount // 10**ft.decimal
+    :param ft: fungible token model (e.g., FTS.USDC)
+    :param account_id: account id. If None, uses the current account
+    :return: token balance as float (amount divided by 10^ft.decimal)
 
     .. code:: python
 
         await acc.ft.get_ft_balance(FTS.USDC, account_id="azbang.near")
 
 
-.. function:: get_metadata(ft: FtModel, account_id: str)
+.. function:: get_metadata(ft: Union[FtModel, str])
 
     Get fungible token metadata
 
-    :param ft: fungible token model FT.USDC
-    :return: FtTokenMetadata
+    :param ft: fungible token model (e.g., FTS.USDC) or contract ID string
+    :return: FtTokenMetadata containing token name, symbol, decimals, etc.
 
     .. code:: python
 
         await acc.ft.get_metadata(FTS.USDC)
 
 
-.. function:: transfer(ft: FtModel, account_id: str, amount: float, memo: str = "", force_register: bool = False)
+.. function:: transfer(ft: FtModel, receiver_id: str, amount: float, memo: str = "", force_register: bool = False, nowait: bool = False)
 
     Transfer fungible token to account
 
-    :param ft: fungible token model FT.USDC
+    :param ft: fungible token model (e.g., FTS.USDC)
     :param receiver_id: receiver account id
     :param amount: float amount to transfer. 1 for 1 USDC
     :param memo: comment
@@ -83,11 +84,11 @@ Documentation
         await acc.ft.transfer(FTS.USDC, "azbang.near", 5, force_register=True)
 
 
-.. function:: transfer_call(ft: FtModel, account_id: str, amount: float, memo: str = "", force_register: bool = False, nowait: bool = False)
+.. function:: transfer_call(ft: FtModel, receiver_id: str, amount: float, memo: str = "", force_register: bool = False, nowait: bool = False)
 
     Transfer fungible token to account and call ft_on_transfer() method in receiver contract
 
-    :param ft: fungible token model FT.USDC
+    :param ft: fungible token model (e.g., FTS.USDC)
     :param receiver_id: receiver account id
     :param amount: float amount to transfer. 1 for 1 USDC
     :param memo: comment
@@ -101,14 +102,14 @@ Documentation
 
 
 
-.. function:: storage_balance_of(ft: FtModel, account_id: str)
+.. function:: storage_balance_of(ft: Union[FtModel, str], account_id: Optional[str] = None)
 
     Get storage balance of account. The balance must be greater than 0.01 NEAR for some smart contracts
     in order for the recipient to accept the token
 
-    :param contract_id: fungible token contract_id
-    :param account_id: account id
-    :return: int balance in yoctoNEAR, 1_000_000_000_000_000_000_000_000 for 1 NEAR
+    :param ft: fungible token model (e.g., FTS.USDC) or contract ID string
+    :param account_id: account id. If None, uses the current account
+    :return: int balance in yoctoNEAR (0 if account is not registered), 1_000_000_000_000_000_000_000_000 for 1 NEAR
 
 
     .. code:: python
@@ -116,14 +117,14 @@ Documentation
         await acc.ft.storage_balance_of(FTS.USDC, "azbang.near")
 
 
-.. function:: storage_deposit(ft: FtModel, account_id: str, amount: int = NEAR // 50)
+.. function:: storage_deposit(ft: Union[FtModel, str], account_id: Optional[str] = None, amount: int = NEAR // 50)
 
     Deposit storage balance for account. The balance must be greater than 0.01 NEAR for some smart contracts
 
-    :param ft: fungible token model FT.USDC
-    :param account_id: receiver account id
-    :param amount: in amount of yoctoNEAR
-    :return:
+    :param ft: fungible token model (e.g., FTS.USDC) or contract ID string
+    :param account_id: receiver account id. If None, uses the current account
+    :param amount: amount to deposit in yoctoNEAR (default: 0.02 NEAR)
+    :return: transaction hash or TransactionResult
 
     .. code:: python
 

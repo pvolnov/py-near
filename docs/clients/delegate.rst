@@ -47,9 +47,10 @@ You can execute this transaction from **any** NEAR Protocol account.
     async def f():
         account = Account(
             "alisa.near",
-            "ed25519::...",
+            "ed25519:...",
             "https://nrpc.herewallet.app",
         )
+        await account.startup()
 
         action = await account.create_delegate_action(actions=[TransferAction(1)], receiver_id="illia.near")
         sign = account.sign_delegate_transaction(action)
@@ -59,7 +60,8 @@ You can execute this transaction from **any** NEAR Protocol account.
             "ed25519:...",
             "https://nrpc.herewallet.app",
         )
-        res = account_to_execute acc.call_delegate_transaction(
+        await account_to_execute.startup()
+        res = await account_to_execute.call_delegate_transaction(
             delegate_action=action,
             signature=sign,
         )
@@ -91,6 +93,9 @@ The following Python function creates and signs a delegate transaction from ``al
     private_key = ed25519.SigningKey(base58.b58decode("...."))
     public_key = base58.b58encode(private_key.get_verifying_key().encode()).decode()
 
+    from py_near.models import DelegateActionModel
+    import base58
+
     action = DelegateActionModel(
         sender_id="alisa.near",
         receiver_id="illia.near",
@@ -100,7 +105,8 @@ The following Python function creates and signs a delegate transaction from ``al
         public_key=public_key,
     )
 
-    sign = private_key.sign(action.nep461_hash).decode()
+    sign = private_key.sign(action.near_delegate_action.get_nep461_hash()).signature
+    sign = base58.b58encode(sign).decode("utf-8")
 
 
 
@@ -115,7 +121,8 @@ And now send this transaction and pay for gas from ``bob.near`` balance.
             "ed25519:...",
             "https://nrpc.herewallet.app",
         )
-    account_to_execute = await acc.call_delegate_transaction(
+    await account_to_execute.startup()
+    res = await account_to_execute.call_delegate_transaction(
         delegate_action=action,
         signature=sign,
     )
