@@ -454,6 +454,8 @@ class JsonProvider(object):
         Raises:
             RpcNotAvailableError: If no RPC nodes are available
         """
+        if not self._client:
+            await self.startup()
         for rpc_addr in self._available_rpcs.copy():
             try:
                 data = {
