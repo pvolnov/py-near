@@ -6,6 +6,8 @@ from typing import List, Union, Dict, Optional
 
 from nacl.signing import VerifyKey
 
+from py_near.constants import RPC_MAINNET
+
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     from collections.abc import MutableSet, MutableMapping
 
@@ -23,7 +25,6 @@ from py_near import constants
 from py_near import transactions
 from py_near import utils
 from py_near.dapps.ft.async_client import FT
-from py_near.dapps.staking.async_client import Staking
 from py_near.exceptions.provider import (
     JsonProviderError,
     RPCTimeoutError,
@@ -65,7 +66,7 @@ class Account(object):
         self,
         account_id: str = None,
         private_key: Union[List[Union[str, bytes]], str, bytes] = None,
-        rpc_addr="https://rpc.mainnet.near.org",
+        rpc_addr=RPC_MAINNET,
     ):
         """
         Initialize Account instance.
@@ -156,8 +157,7 @@ class Account(object):
         Args:
             receiver_id: Account ID that will receive the transaction
             actions: List of actions to include in the transaction
-            nowait: If True, return transaction hash immediately without waiting
-                for confirmation. If False, wait for transaction execution.
+            nowait: LEGACY, now same as included
             included: If True, wait until transaction is included in a block,
                 then return transaction hash. Takes precedence over nowait.
 
@@ -171,6 +171,7 @@ class Account(object):
         if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
         await self._update_last_block_hash()
+        included = included or nowait
 
         pk = await self._free_signers.get()
         await self._free_signers.put(pk)
@@ -206,8 +207,6 @@ class Account(object):
                     if "Transaction not included" in str(e):
                         logger.error(f"Transaction not included {trx_hash}")
                 return trx_hash
-            elif nowait:
-                return await self._provider.send_tx(serialized_tx)
             return await self._provider.send_tx_and_wait(
                 serialized_tx, trx_hash=trx_hash, receiver_id=receiver_id
             )
@@ -697,13 +696,3 @@ class Account(object):
             FT client instance for interacting with fungible tokens
         """
         return FT(self)
-
-    @property
-    def staking(self):
-        """
-        Get staking client.
-
-        Returns:
-            Staking client instance for interacting with staking operations
-        """
-        return Staking(self)

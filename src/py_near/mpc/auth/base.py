@@ -21,3 +21,6 @@ class AuthContract:
         self, wallet_id: str, near_account: Account, access_id: int
     ):
         raise NotImplementedError("Revoke access is not implemented")
+
+    def generate_user_payload(self, msg_hash: bytes) -> str:
+        raise NotImplementedError("Generate user payload is not implemented")

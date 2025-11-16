@@ -1,19 +1,20 @@
 [tool.poetry]
 name = "py-near"
-version = "1.2.0"
-description = "Pretty simple and fully asynchronous framework for working with NEAR blockchain"
-authors = ["pvolnov <petr@herewallet.app>"]
+version = "1.2.1"
+description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
+authors = ["pvolnov <peter@hot-labs.org>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 base58 = "^2.1.1"
-python = ">=3.8,<3.12"
-httpx = ">=0.26.0"
-py-near-primitives = {path = "/Users/petervolnov/work/near-primitives/target/wheels/py_near_primitives-0.2.8-cp37-abi3-macosx_11_0_arm64.whl"}
+python = ">=3.9,<3.12"
 frozenlist = "^1.4.1"
 pynacl = "^1.5.0"
 loguru = "^0.7.2"
 pydantic = "^2.6.2"
+eth-keys = "^0.7.0"
+aiohttp = "^3.13.2"
+py-near-primitives = "^0.2.12"
 
 [tool.poetry.group.dev.dependencies]
 black = "^21.12b0"
@@ -27,9 +28,9 @@ twine = "^6.1.0"
 
 [project]
 name = "py-near"
-version = "1.2.0"
-description = "Pretty simple and fully asynchronous framework for working with NEAR blockchain"
-authors = [{ name = "pvolnov", email = "petr@herewallet.app" }]
+version = "1.2.1"
+description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
+authors = [{ name = "pvolnov", email = "peter@hot-labs.org" }]
 license = { file = "LICENSE" }
 
 keywords = ["python", "near", "async"]

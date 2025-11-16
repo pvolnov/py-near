@@ -104,6 +104,7 @@ class ActionType(str, Enum):
     DELETE_KEY = "DeleteKey"
     DEPLOY_CONTRACT = "DeployContract"
     DELEGATE = "Delegate"
+    USE_GLOBAL_CONTRACT = "UseGlobalContractByAccountId"
 
 
 class PublicKeyPermissionType(str, Enum):
@@ -371,6 +372,7 @@ class ReceiptAction:
         delegate_action: Delegate action details (for Delegate actions)
     """
 
+    account_id: str
     transactions_type: ActionType
     # Transaction
     deposit: Optional[str] = None

@@ -20,5 +20,3 @@ def timestamp():
     """
     return utcnow().timestamp()
 
-
-

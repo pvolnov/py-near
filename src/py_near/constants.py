@@ -3,4 +3,4 @@ TGAS = 1_000_000_000_000
 
 DEFAULT_ATTACHED_GAS = 200 * TGAS
 ALLOWANCE = 25000000000000000000000
-RPC_MAINNET = "https://rpc.mainnet.near.org"
+RPC_MAINNET = "https://archival-rpc.mainnet.fastnear.com"

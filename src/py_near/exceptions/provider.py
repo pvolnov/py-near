@@ -1,6 +1,8 @@
 import json
 from typing import Optional
 
+from loguru import logger
+
 
 class JsonProviderError(Exception):
     trx_hash: Optional[str] = None
@@ -122,7 +124,11 @@ class TxExecutionError(InvalidTransactionError):
     def __init__(self, data={}, error_json=None, **kwargs):
         super().__init__(error_json=error_json)
         if isinstance(data, str):
-            data = json.loads(data)
+            try:
+                data = json.loads(data)
+            except json.decoder.JSONDecodeError:
+                logger.error(f"Failed to parse TxExecutionError data: {data}")
+                raise InvalidTransactionError(data)
         data.update(kwargs)
         for key, value in data.items():
             setattr(self, key, value)

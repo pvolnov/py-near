@@ -18,6 +18,9 @@ class WalletAccessModel(BaseModel):
     chain_id: int
     msg: Optional[str] = None
 
+    def generate_user_payload(self):
+        raise NotImplementedError()
+
 
 class WalletModel(BaseModel):
     access_list: List[WalletAccessModel]
@@ -27,6 +30,5 @@ class WalletModel(BaseModel):
     def build(cls, data: dict):
         return cls(
             access_list=[WalletAccessModel(**x) for x in data["access_list"]],
-            block_height=data["block_height"],
             key_gen=data["key_gen"],
         )

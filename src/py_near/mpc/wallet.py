@@ -2,16 +2,14 @@ import json
 from hashlib import sha256
 from typing import List, Optional
 
+import aiohttp
 import base58
-import httpx
 from eth_keys.datatypes import Signature
 from eth_keys.exceptions import BadSignature
-from eth_utils import keccak
 from loguru import logger
 from nacl import encoding, signing
 
 from py_near.account import Account
-from py_near.mpc.auth.auth_2fa import AuthContract2FA
 from py_near.mpc.auth.base import AuthContract
 from py_near.mpc.auth.default_auth import DefaultAuthContract
 from py_near.mpc.auth.keys_auth import KeysAuthContract
@@ -22,7 +20,6 @@ _WALLET_REGISTER = "mpc.hot.tg"
 AUTH_CLASS = {
     "default.auth.hot.tg": DefaultAuthContract,
     "keys.auth.hot.tg": KeysAuthContract,
-    "2fa.auth.hot.tg": AuthContract2FA,
 }
 
 
@@ -74,7 +71,23 @@ class MPCWallet:
             raise ValueError("Derive is required")
         self.derive = derive
         self.hot_rpc = hot_rpc
-        self._client = httpx.AsyncClient()
+        self._connector = aiohttp.TCPConnector()
+        self._client = aiohttp.ClientSession(connector=self._connector)
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - closes connections."""
+        await self.shutdown()
+
+    async def shutdown(self):
+        """Shutdown the wallet and close HTTP client connections."""
+        if not self._client.closed:
+            await self._client.close()
+        if not self._connector.closed:
+            await self._connector.close()
 
     def derive_private_key(self, gen=0):
         """
@@ -140,7 +153,7 @@ class MPCWallet:
             dict(public_keys=[base58.b58encode(public_key).decode()], rules=[])
         ).replace(" ", "")
         return await self.create_wallet(
-            "keys.auth.hot.tg", None, auth_to_add_msg, key_gen
+            "keys.auth.hot.tg", "", auth_to_add_msg, key_gen
         )
 
     async def create_wallet(
@@ -180,7 +193,7 @@ class MPCWallet:
         ).digest()
         signature = base58.b58encode(root_pk.sign(proof_hash).signature).decode("utf-8")
 
-        s = await self._client.post(
+        async with self._client.post(
             f"{self.hot_rpc}/create_wallet",
             json=dict(
                 wallet_id=self.wallet_id,
@@ -195,9 +208,9 @@ class MPCWallet:
                     "metadata": metadata or None,
                 },
             ),
-            timeout=timeout,
-        )
-        return s.json()
+            timeout=aiohttp.ClientTimeout(total=timeout),
+        ) as s:
+            return await s.json()
 
     async def get_ecdsa_public_key(self, timeout=10) -> bytes:
         """
@@ -209,15 +222,14 @@ class MPCWallet:
         Returns:
             ECDSA public key as bytes
         """
-        resp = (
-            await self._client.post(
-                f"{self.hot_rpc}/public_key",
-                json=dict(wallet_derive=base58.b58encode(self.derive).decode()),
-                timeout=timeout,
-                follow_redirects=True,
-            )
-        ).json()
-        return bytes.fromhex(resp["ecdsa"])
+        async with self._client.post(
+            f"{self.hot_rpc}/public_key",
+            json=dict(wallet_derive=base58.b58encode(self.derive).decode()),
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            allow_redirects=True,
+        ) as resp:
+            data = await resp.json()
+            return bytes.fromhex(data["ecdsa"])
 
     @property
     def public_key(self):
@@ -276,7 +288,7 @@ class MPCWallet:
             "message_body": message_body.hex() if message_body else "",
         }
 
-        resp = await self._client.post(
+        async with self._client.post(
             f"{self.hot_rpc}/sign_raw",
             json=dict(
                 uid=self.derive.hex(),
@@ -284,13 +296,13 @@ class MPCWallet:
                 proof=proof,
                 key_type=curve_type,
             ),
-            timeout=timeout,
-            follow_redirects=True,
-        )
-        resp = resp.json()
-        if "Ecdsa" not in resp:
-            raise ValueError(f"Invalid response from server: {resp}")
-        resp = resp["Ecdsa"]
+            timeout=aiohttp.ClientTimeout(total=timeout),
+            allow_redirects=True,
+        ) as resp:
+            resp_data = await resp.json()
+        if "Ecdsa" not in resp_data:
+            raise ValueError(f"Invalid response from server: {resp_data}")
+        resp = resp_data["Ecdsa"]
         r = int(resp["big_r"][2:], 16)
         s = int(resp["signature"], 16)
 

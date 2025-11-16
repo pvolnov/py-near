@@ -1,2 +1,0 @@
-class RequestLimitError(Exception):
-    pass

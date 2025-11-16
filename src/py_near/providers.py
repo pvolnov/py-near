@@ -5,8 +5,7 @@ import json
 from collections import Counter
 from typing import Optional
 
-import httpx
-from httpx import Limits
+import aiohttp
 from loguru import logger
 
 from py_near.constants import TIMEOUT_WAIT_RPC
@@ -53,7 +52,9 @@ class JsonProvider(object):
     Supports multiple RPC endpoints with automatic failover and health checking.
     """
 
-    def __init__(self, rpc_addr, allow_broadcast=True, timeout=TIMEOUT_WAIT_RPC):
+    def __init__(
+        self, rpc_addr, allow_broadcast=True, timeout=TIMEOUT_WAIT_RPC, headers=None
+    ):
         """
         Initialize JSON-RPC provider.
 
@@ -74,10 +75,20 @@ class JsonProvider(object):
         self._available_rpcs = self._rpc_addresses.copy()
         self._last_rpc_addr_check = 0
         self.allow_broadcast = allow_broadcast
-        self._timeout = timeout
-        self._client = httpx.AsyncClient(
-            limits=Limits(max_connections=1000, max_keepalive_connections=200)
+        self._timeout = aiohttp.ClientTimeout(total=timeout)
+        self._headers = headers or dict()
+        self._connector = aiohttp.TCPConnector(limit=1000, limit_per_host=200)
+        self._client = aiohttp.ClientSession(
+            connector=self._connector, timeout=self._timeout
         )
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit - closes connections."""
+        await self.shutdown()
 
     async def shutdown(self):
         """
@@ -85,7 +96,10 @@ class JsonProvider(object):
 
         Closes the HTTP client and cleans up resources.
         """
-        pass
+        if not self._client.closed:
+            await self._client.close()
+        if not self._connector.closed:
+            await self._connector.close()
 
     async def _check_available_rpcs(self):
         """
@@ -108,36 +122,37 @@ class JsonProvider(object):
                     auth_key = rpc_addr_url.split("//")[1].split("@")[0]
                     rpc_addr_url = rpc_addr_url.replace(auth_key + "@", "")
 
-                r = await self._client.post(
+                async with self._client.post(
                     rpc_addr_url,
                     json=data,
                     headers={
                         "Referer": "https://tgapp.herewallet.app",
                         "Authorization": f"Bearer {auth_key}",
                     },
-                )
-                if r.status_code == 200:
-                    data = json.loads(r.text)["result"]
-                    diff = 0
-                    if data["sync_info"]["syncing"]:
-                        last_block_ts = datetime.datetime.fromisoformat(
-                            data["sync_info"]["latest_block_time"]
-                        )
-                        diff = (
-                            datetime.datetime.utcnow().timestamp()
-                            - last_block_ts.timestamp()
-                        )
-                        is_syncing = diff > 60
+                ) as r:
+                    if r.status == 200:
+                        text = await r.text()
+                        data = json.loads(text)["result"]
+                        diff = 0
+                        if data["sync_info"]["syncing"]:
+                            last_block_ts = datetime.datetime.fromisoformat(
+                                data["sync_info"]["latest_block_time"]
+                            )
+                            diff = (
+                                datetime.datetime.utcnow().timestamp()
+                                - last_block_ts.timestamp()
+                            )
+                            is_syncing = diff > 60
+                        else:
+                            is_syncing = False
+                        if is_syncing:
+                            logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
+                            continue
+                        available_rpcs.append(rpc_addr)
                     else:
-                        is_syncing = False
-                    if is_syncing:
-                        logger.error(f"Remove async RPC : {rpc_addr} ({diff})")
-                        continue
-                    available_rpcs.append(rpc_addr)
-                else:
-                    logger.error(
-                        f"Remove rpc because of error {r.status_code}: {rpc_addr}"
-                    )
+                        logger.error(
+                            f"Remove rpc because of error {r.status}: {rpc_addr}"
+                        )
             except Exception as e:
                 if rpc_addr in self._available_rpcs:
                     logger.error(f"Remove rpc: {e}")
@@ -178,30 +193,28 @@ class JsonProvider(object):
         j = {"method": method, "params": params, "id": "dontcare", "jsonrpc": "2.0"}
 
         async def f(rpc_call_addr):
-            auth_key = "py-near"
+            headers = self._headers.copy()
             if "@" in rpc_call_addr:
                 auth_key = rpc_call_addr.split("//")[1].split("@")[0]
                 rpc_call_addr = rpc_call_addr.replace(auth_key + "@", "")
-            r = await self._client.post(
-                rpc_call_addr,
-                json=j,
-                timeout=self._timeout,
-                headers={
-                    "Referer": "https://tgapp.herewallet.app",
-                    "Authorization": f"Bearer {auth_key}",
-                },
-            )
-            if r.status_code == 200:
-                return json.loads(r.text)
-            return {
-                "error": {
-                    "cause": {
-                        "name": "RPC_ERROR",
-                        "message": f"Status: {r.status_code}",
-                    },
-                    "data": r.text,
+                headers["Authorization"] = f"Bearer {auth_key}"
+
+            async with self._client.post(
+                rpc_call_addr, json=j, headers=headers
+            ) as r:
+                if r.status == 200:
+                    text = await r.text()
+                    return json.loads(text)
+                text = await r.text()
+                return {
+                    "error": {
+                        "cause": {
+                            "name": "RPC_ERROR",
+                            "message": f"Status: {r.status}",
+                        },
+                        "data": text,
+                    }
                 }
-            }
 
         if broadcast or threshold:
             pending = [
@@ -359,7 +372,9 @@ class JsonProvider(object):
             logger.warning("Invalid nonce during broadcast included transaction")
             return None
 
-    async def wait_for_trx(self, trx_hash, receiver_id) -> TransactionResult:
+    async def wait_for_trx(
+        self, trx_hash, receiver_id, attempts: int = 6
+    ) -> TransactionResult:
         """
         Wait for a transaction to be processed by polling.
 
@@ -373,7 +388,7 @@ class JsonProvider(object):
         Raises:
             RPCTimeoutError: If transaction is not found after multiple attempts
         """
-        for _ in range(6):
+        for _ in range(attempts):
             await asyncio.sleep(5)
             try:
                 result = await self.get_tx(trx_hash, receiver_id)
@@ -413,9 +428,10 @@ class JsonProvider(object):
                 broadcast=self.allow_broadcast,
             )
             return TransactionResult(**res)
-        except RPCTimeoutError:
+        except RPCTimeoutError as e:
             if receiver_id and trx_hash:
                 return await self.wait_for_trx(trx_hash, receiver_id)
+            raise e
 
     async def get_status(self):
         """
@@ -435,16 +451,17 @@ class JsonProvider(object):
                     "params": {"finality": "final"},
                     "id": 1,
                 }
-                headers = {
-                    "Referer": "https://tgapp.herewallet.app",
-                }
+                headers = self._headers.copy()
                 if "@" in rpc_addr:
                     auth_key = rpc_addr.split("//")[1].split("@")[0]
                     rpc_addr = rpc_addr.replace(auth_key + "@", "")
-                    headers = {"Authorization": f"Bearer {auth_key}"}
-                r = await self._client.post(rpc_addr, json=data, headers=headers)
-                if r.status_code == 200:
-                    return json.loads(r.text)["result"]
+                    headers["Authorization"] = f"Bearer {auth_key}"
+                async with self._client.post(
+                    rpc_addr, json=data, headers=headers
+                ) as r:
+                    if r.status == 200:
+                        text = await r.text()
+                        return json.loads(text)["result"]
             except ConnectionError as e:
                 logger.error(f"Rpc get status error: {e}")
             except Exception as e:
