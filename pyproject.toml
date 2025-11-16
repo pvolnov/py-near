@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-near"
-version = "1.1.59"
+version = "1.2.0"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchain"
 authors = ["pvolnov <petr@herewallet.app>"]
 readme = "README.md"
@@ -9,7 +9,7 @@ readme = "README.md"
 base58 = "^2.1.1"
 python = ">=3.8,<3.12"
 httpx = ">=0.26.0"
-py-near-primitives = "0.2.4"
+py-near-primitives = {path = "/Users/petervolnov/work/near-primitives/target/wheels/py_near_primitives-0.2.8-cp37-abi3-macosx_11_0_arm64.whl"}
 frozenlist = "^1.4.1"
 pynacl = "^1.5.0"
 loguru = "^0.7.2"
@@ -27,7 +27,7 @@ twine = "^6.1.0"
 
 [project]
 name = "py-near"
-version = "1.1.59"
+version = "1.2.0"
 description = "Pretty simple and fully asynchronous framework for working with NEAR blockchain"
 authors = [{ name = "pvolnov", email = "petr@herewallet.app" }]
 license = { file = "LICENSE" }

@@ -40,12 +40,16 @@ from py_near.providers import JsonProvider
 
 
 class ViewFunctionError(Exception):
+    """Exception raised when a view function call fails."""
     pass
 
 
 class Account(object):
     """
-    This class implement all blockchain functions for your account
+    Account class for interacting with NEAR blockchain.
+
+    This class provides methods for signing transactions, calling smart contracts,
+    managing keys, and interacting with various NEAR protocol features.
     """
 
     _access_key: dict
@@ -63,6 +67,17 @@ class Account(object):
         private_key: Union[List[Union[str, bytes]], str, bytes] = None,
         rpc_addr="https://rpc.mainnet.near.org",
     ):
+        """
+        Initialize Account instance.
+
+        Args:
+            account_id: NEAR account identifier (e.g., "example.near")
+            private_key: Private key(s) for signing transactions. Can be:
+                - A single private key (str or bytes)
+                - A list of private keys (str or bytes)
+                - None (for read-only operations)
+            rpc_addr: RPC endpoint URL or list of URLs for NEAR network
+        """
         self._provider = JsonProvider(rpc_addr)
         self.account_id = account_id
         if private_key is None:
@@ -88,15 +103,19 @@ class Account(object):
                     logger.error(f"Can't decode private key {pk[:10]}")
                     continue
             private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
-            public_key_b58 = base58.b58encode(private_key.verify_key.encode()).decode("utf-8")
+            public_key_b58 = base58.b58encode(private_key.verify_key.encode()).decode(
+                "utf-8"
+            )
             self._signer_by_pk[public_key_b58] = pk
             self._free_signers.put_nowait(pk)
             self._signers.append(pk)
 
     async def startup(self):
         """
-        Initialize async object
-        :return:
+        Initialize async resources for the account.
+
+        Must be called before using async methods. Initializes locks and
+        retrieves chain_id from the network.
         """
         self._lock = asyncio.Lock()
         self._lock_by_pk = collections.defaultdict(asyncio.Lock)
@@ -104,15 +123,19 @@ class Account(object):
 
     async def shutdown(self):
         """
-        Close async object
-        :return:
+        Clean up async resources.
+
+        Closes the RPC provider connection. Should be called when done
+        using the account instance.
         """
         await self._provider.shutdown()
 
     async def _update_last_block_hash(self):
         """
-        Update last block hash& If it's older than 50 block before, transaction will fail
-        :return: last block hash
+        Update the latest block hash from the network.
+
+        If the cached block hash is older than 50 blocks, it will be refreshed.
+        This is necessary because transactions with outdated block hashes will fail.
         """
         if self._latest_block_hash_ts + 50 > utils.timestamp():
             return
@@ -128,13 +151,22 @@ class Account(object):
         self, receiver_id, actions: List[Action], nowait=False, included=False
     ) -> Union[TransactionResult, str]:
         """
-        Sign transaction and send it to blockchain
-        :param receiver_id:
-        :param actions: list of actions
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        confirm and return TransactionResult
-        :param included: if included is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Sign and submit a transaction to the blockchain.
+
+        Args:
+            receiver_id: Account ID that will receive the transaction
+            actions: List of actions to include in the transaction
+            nowait: If True, return transaction hash immediately without waiting
+                for confirmation. If False, wait for transaction execution.
+            included: If True, wait until transaction is included in a block,
+                then return transaction hash. Takes precedence over nowait.
+
+        Returns:
+            Transaction hash (str) if nowait=True or included=True,
+            TransactionResult if nowait=False and included=False
+
+        Raises:
+            ValueError: If no private keys are configured
         """
         if not self._signers:
             raise ValueError("You must provide a private key or seed to call methods")
@@ -190,18 +222,39 @@ class Account(object):
 
     @property
     def signer(self) -> Optional[bytes]:
+        """
+        Get the first configured private key signer.
+
+        Returns:
+            First private key as bytes, or None if no signers are configured
+        """
         if not self._signers:
             return None
         return self._signers[0]
 
     @property
     def provider(self) -> JsonProvider:
+        """
+        Get the RPC provider instance.
+
+        Returns:
+            JsonProvider instance used for RPC calls
+        """
         return self._provider
 
     async def get_access_key(self, pk: bytes) -> AccountAccessKey:
         """
-        Get access key for current account
-        :return: AccountAccessKey
+        Get access key information for a public key.
+
+        Args:
+            pk: Private key (bytes) to get the corresponding public key access key info.
+                If None, uses the first configured signer.
+
+        Returns:
+            AccountAccessKey containing nonce, permissions, and block info
+
+        Raises:
+            ValueError: If the RPC response contains an error
         """
         if pk is None:
             pk = self._signers[0]
@@ -217,9 +270,13 @@ class Account(object):
 
     async def get_access_key_list(self, account_id: str = None) -> List[PublicKey]:
         """
-        Get access key list for account_id, if account_id is None, get access key list for current account
-        :param account_id:
-        :return: list of PublicKey
+        Get list of all access keys for an account.
+
+        Args:
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            List of PublicKey objects with their access key information
         """
         if account_id is None:
             account_id = self.account_id
@@ -231,19 +288,28 @@ class Account(object):
         return result
 
     async def fetch_state(self) -> dict:
-        """Fetch state for given account."""
+        """
+        Fetch account state from the blockchain.
+
+        Returns:
+            Dictionary containing account information (balance, code_hash, etc.)
+        """
         return await self._provider.get_account(self.account_id)
 
     async def send_money(
         self, account_id: str, amount: int, nowait: bool = False, included=False
     ) -> TransactionResult:
         """
-        Send money to account_id
-        :param account_id: receiver account id
-        :param amount: amount in yoctoNEAR
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :param included: if included is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Send NEAR tokens to another account.
+
+        Args:
+            account_id: Receiver account ID
+            amount: Amount to send in yoctoNEAR (1 NEAR = 10^24 yoctoNEAR)
+            nowait: If True, return transaction hash immediately
+            included: If True, wait until transaction is included in a block
+
+        Returns:
+            Transaction hash (str) or TransactionResult depending on flags
         """
         return await self.sign_and_submit_tx(
             account_id, [transactions.create_transfer_action(amount)], nowait, included
@@ -260,15 +326,20 @@ class Account(object):
         included=False,
     ):
         """
-        Call function on smart contract
-        :param contract_id: smart contract address
-        :param method_name: call method name
-        :param args: json params for method
-        :param gas: amount of attachment gas. Default is 200000000000000
-        :param amount: amount of attachment NEAR, Default is 0
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :param included: if included is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Call a function on a smart contract.
+
+        Args:
+            contract_id: Smart contract account ID
+            method_name: Name of the method to call
+            args: Dictionary of arguments to pass to the method (will be JSON serialized)
+            gas: Amount of gas to attach (in yoctoNEAR gas units).
+                Default is 200 TGas (200 * 10^12)
+            amount: Amount of NEAR to attach (in yoctoNEAR). Default is 0
+            nowait: If True, return transaction hash immediately
+            included: If True, wait until transaction is included in a block
+
+        Returns:
+            Transaction hash (str) or TransactionResult depending on flags
         """
         ser_args = json.dumps(args).encode("utf8")
         return await self.sign_and_submit_tx(
@@ -282,6 +353,48 @@ class Account(object):
             included,
         )
 
+    async def use_global_contract(
+        self,
+        account_id: Optional[str] = None,
+        contract_code_hash: Union[str, bytes, None] = None,
+        nowait=False,
+        included=False,
+    ):
+        """
+        Use a global contract by account ID or code hash.
+
+        Args:
+            account_id: Account ID of the global contract to use
+            contract_code_hash: Code hash of the global contract to use (32 bytes)
+            nowait: If True, return transaction hash immediately
+            included: If True, wait until transaction is included in a block
+
+        Returns:
+            Transaction hash (str) or TransactionResult depending on flags
+
+        Raises:
+            ValueError: If neither account_id nor contract_code_hash is provided
+        """
+        actions = []
+        if account_id:
+            actions.append(
+                transactions.create_use_global_contract_action_by_account_id(account_id)
+            )
+        elif contract_code_hash:
+            actions.append(
+                transactions.create_use_global_contract_action_by_code_hash(
+                    contract_code_hash
+                )
+            )
+        else:
+            raise ValueError("Either account_id or contract_code_hash must be provided")
+        return await self.sign_and_submit_tx(
+            self.account_id,
+            actions,
+            nowait,
+            included,
+        )
+
     async def create_account(
         self,
         account_id: str,
@@ -290,13 +403,18 @@ class Account(object):
         nowait=False,
     ):
         """
-        Create new account in subdomain of current account. For example, if current account is "test.near",
-        you can create "wwww.test.near"
-        :param account_id: new account id
-        :param public_key: add public key to new account
-        :param initial_balance: amount to transfer NEAR to new account
-        :param nowait: is nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Create a new sub-account under the current account.
+
+        For example, if current account is "test.near", you can create "sub.test.near".
+
+        Args:
+            account_id: New account ID (must be a subdomain of current account)
+            public_key: Public key to add to the new account (full access)
+            initial_balance: Initial balance to transfer in yoctoNEAR
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         actions = [
             transactions.create_create_account_action(),
@@ -314,13 +432,22 @@ class Account(object):
         nowait=False,
     ):
         """
-        Add public key to account with access to smart contract methods
-        :param public_key: public_key to add
-        :param receiver_id: smart contract account id
-        :param method_names: list of method names to allow
-        :param allowance: maximum amount of gas to use for this key
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Add a function call access key to the account.
+
+        The key will have permission to call specific methods on a smart contract
+        with a limited gas allowance.
+
+        Args:
+            public_key: Public key to add (str or bytes)
+            receiver_id: Smart contract account ID that this key can interact with
+            method_names: List of method names the key is allowed to call.
+                Empty list means all methods. Default is empty list.
+            allowance: Maximum amount of gas this key can use (in yoctoNEAR gas units).
+                Default is 25 TGas
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         if method_names is None:
             method_names = []
@@ -335,10 +462,16 @@ class Account(object):
         self, public_key: Union[str, bytes], nowait=False
     ) -> TransactionResult:
         """
-        Add public key to account with full access
-        :param public_key: public_key to add
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Add a full access public key to the account.
+
+        Full access keys can perform any action on behalf of the account.
+
+        Args:
+            public_key: Public key to add (str or bytes)
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         actions = [
             transactions.create_full_access_key_action(public_key),
@@ -347,10 +480,14 @@ class Account(object):
 
     async def delete_public_key(self, public_key: Union[str, bytes], nowait=False):
         """
-        Delete public key from account
-        :param public_key: public_key to delete
-        :param nowait: is nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Delete a public key from the account.
+
+        Args:
+            public_key: Public key to delete (str or bytes)
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         actions = [
             transactions.create_delete_access_key_action(public_key),
@@ -364,6 +501,18 @@ class Account(object):
         nowait=False,
         included=False,
     ):
+        """
+        Execute a signed delegate action transaction.
+
+        Args:
+            delegate_action: DelegateAction or DelegateActionModel to execute
+            signature: Signature for the delegate action (bytes or base58 string)
+            nowait: If True, return transaction hash immediately
+            included: If True, wait until transaction is included in a block
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+        """
         if isinstance(signature, str):
             signature = base58.b58decode(signature.replace("ed25519:", ""))
         if isinstance(delegate_action, DelegateActionModel):
@@ -378,10 +527,14 @@ class Account(object):
 
     async def deploy_contract(self, contract_code: bytes, nowait=False):
         """
-        Deploy smart contract to account
-        :param contract_code: smart contract code
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Deploy smart contract code to the account.
+
+        Args:
+            contract_code: Compiled contract code (WASM bytes)
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
         """
         return await self.sign_and_submit_tx(
             self.account_id,
@@ -391,11 +544,18 @@ class Account(object):
 
     async def stake(self, public_key: str, amount: str, nowait=False):
         """
-        Stake NEAR on account. Account must have enough balance to be in validators pool
-        :param public_key: public_key to stake
-        :param amount: amount of NEAR to stake
-        :param nowait: if nowait is True, return transaction hash, else wait execution
-        :return: transaction hash or TransactionResult
+        Stake NEAR tokens with a validator.
+
+        Args:
+            public_key: Validator's public key to stake with
+            amount: Amount of NEAR to stake (as string in yoctoNEAR)
+            nowait: If True, return transaction hash immediately
+
+        Returns:
+            Transaction hash (str) or TransactionResult
+
+        Note:
+            Account must have sufficient balance to meet validator pool requirements
         """
         return await self.sign_and_submit_tx(
             self.account_id,
@@ -412,13 +572,23 @@ class Account(object):
         threshold: Optional[int] = None,
     ) -> ViewFunctionResult:
         """
-        Call view function on smart contract. View function is read only function, it can't change state
-        :param contract_id: smart contract account id
-        :param method_name: method name to call
-        :param args: json args to call method
-        :param block_id: execution view transaction in block with given id
-        :param threshold: minimal amount of nodes with same result
-        :return: result of view function call
+        Call a view function on a smart contract (read-only).
+
+        View functions cannot modify contract state and do not require a transaction.
+
+        Args:
+            contract_id: Smart contract account ID
+            method_name: Name of the view method to call
+            args: Dictionary of arguments (will be JSON serialized)
+            block_id: Optional block ID to query at a specific block height
+            threshold: Minimum number of nodes that must return the same result
+                (for consensus verification)
+
+        Returns:
+            ViewFunctionResult containing the method result, logs, and block info
+
+        Raises:
+            ViewFunctionError: If the view function call fails
         """
         result = await self._provider.view_call(
             contract_id,
@@ -436,10 +606,19 @@ class Account(object):
         self, actions: List[Action], receiver_id, public_key: Optional[str] = None
     ):
         """
-        Create delegate action from list of actions
-        :param actions:
-        :param receiver_id:
-        :return:
+        Create a delegate action from a list of actions.
+
+        Delegate actions allow signing transactions that can be executed later
+        by another account.
+
+        Args:
+            actions: List of actions to include in the delegate action
+            receiver_id: Account ID that will receive the delegate action
+            public_key: Optional public key to use for signing. If None, uses
+                the first configured signer
+
+        Returns:
+            DelegateActionModel ready to be signed
         """
         if public_key is None:
             pk = self._signers[0]
@@ -463,9 +642,16 @@ class Account(object):
         self, delegate_action: Union[DelegateAction, DelegateActionModel]
     ) -> str:
         """
-        Sign delegate transaction
-        :param delegate_action: DelegateAction or DelegateActionModel
-        :return: signature (bytes)
+        Sign a delegate action transaction.
+
+        Args:
+            delegate_action: DelegateAction or DelegateActionModel to sign
+
+        Returns:
+            Base58-encoded signature string
+
+        Raises:
+            ValueError: If the public key is not found in the signer list
         """
         if isinstance(delegate_action, DelegateActionModel):
             delegate_action = delegate_action.near_delegate_action
@@ -478,15 +664,22 @@ class Account(object):
         if public_key not in self._signer_by_pk:
             raise ValueError(f"Public key {public_key} not found in signer list")
 
-        private_key = signing.SigningKey(self._signer_by_pk[public_key][:32], encoder=encoding.RawEncoder)
+        private_key = signing.SigningKey(
+            self._signer_by_pk[public_key][:32], encoder=encoding.RawEncoder
+        )
         sign = private_key.sign(nep461_hash).signature
         return base58.b58encode(sign).decode("utf-8")
 
     async def get_balance(self, account_id: str = None) -> int:
         """
-        Get account balance
-        :param account_id: if account_id is None, return balance of current account
-        :return: balance of account in yoctoNEAR
+        Get account balance in yoctoNEAR.
+
+        Args:
+            account_id: Account ID to query. If None, uses the current account.
+
+        Returns:
+            Account balance in yoctoNEAR (1 NEAR = 10^24 yoctoNEAR).
+            Returns 0 if account does not exist.
         """
         if account_id is None:
             account_id = self.account_id
@@ -498,15 +691,19 @@ class Account(object):
     @property
     def ft(self):
         """
-        Get client for fungible tokens
-        :return: FT(self)
+        Get fungible token (FT) client.
+
+        Returns:
+            FT client instance for interacting with fungible tokens
         """
         return FT(self)
 
     @property
     def staking(self):
         """
-        Get client for staking
-        :return: Staking(self)
+        Get staking client.
+
+        Returns:
+            Staking client instance for interacting with staking operations
         """
         return Staking(self)

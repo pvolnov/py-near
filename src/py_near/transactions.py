@@ -16,6 +16,11 @@ from py_near_primitives import (
     AccessKey,
     AccessKeyPermissionFieldless,
     FunctionCallPermission,
+    DeployGlobalContractAction,
+    UseGlobalContractAction,
+    GlobalContractDeployMode,
+    GlobalContractIdentifierCodeHash,
+    GlobalContractIdentifierAccountId,
 )
 
 from py_near.models import Action
@@ -125,3 +130,24 @@ def create_deploy_contract_action(code: bytes):
 
 def create_function_call_action(method_name: str, args, gas: int, deposit: int):
     return FunctionCallAction(method_name, args, gas, deposit)
+
+
+def create_deploy_global_contract_action(
+    code: bytes, deploy_mode: GlobalContractDeployMode
+):
+    return DeployGlobalContractAction(code, deploy_mode)
+
+
+def create_use_global_contract_action_by_code_hash(hash_bytes: Union[bytes, str]):
+    if isinstance(hash_bytes, str):
+        hash_bytes = base58.b58decode(hash_bytes)
+    if len(hash_bytes) != 32:
+        raise ValueError("hash_bytes must be exactly 32 bytes")
+    hash_array = bytes(hash_bytes[:32])
+    identifier = GlobalContractIdentifierCodeHash(hash_array)
+    return UseGlobalContractAction(identifier)
+
+
+def create_use_global_contract_action_by_account_id(account_id: str):
+    identifier = GlobalContractIdentifierAccountId(account_id)
+    return UseGlobalContractAction(identifier)

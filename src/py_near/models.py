@@ -18,6 +18,8 @@ from py_near_primitives.py_near_primitives import (
     DeleteKeyAction,
     AddKeyAction,
     StakeAction,
+    UseGlobalContractAction,
+    DeployGlobalContractAction,
 )
 from py_near_primitives.py_near_primitives import (
     FunctionCallPermission,
@@ -37,6 +39,8 @@ Action = Union[
     DeleteKeyAction,
     AddKeyAction,
     StakeAction,
+    UseGlobalContractAction,
+    DeployGlobalContractAction,
 ]
 
 
@@ -156,6 +160,8 @@ class DelegateActionModel:
             DeleteKeyAction,
             AddKeyAction,
             StakeAction,
+            UseGlobalContractAction,
+            DeployGlobalContractAction,
         ]
     ]
     sender_id: str
