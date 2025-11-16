@@ -11,7 +11,7 @@
 [//]: # ([![downloads]&#40;https://img.shields.io/github/downloads/pvolnov/py-near/total?style=flat-square&#41;]&#40;https://pypi.org/project/py-near&#41;)
 
 
-**py-near** is a pretty simple and fully asynchronous framework for working with NEAR blockchain.
+**py-near** is a Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support
 
 ## Examples
 <details>
@@ -48,23 +48,42 @@ async def main():
 asyncio.run(main())
 ```
 
-### Transfer money by phone number
+### Working with NEAR Intents (OmniBalance)
 
 ```python
-from py_near.account import Account
+from py_near.omni_balance import OmniBalance
 import asyncio
-from py_near.dapps.core import NEAR
 
 ACCOUNT_ID = "bob.near"
 PRIVATE_KEY = "ed25519:..."
 
 
 async def main():
-   acc = Account(ACCOUNT_ID, PRIVATE_KEY)
-
-   await acc.startup()
-   tr = await acc.phone.send_near_to_phone("+15626200911", NEAR // 10)
-   print(tr.transaction.hash)
+    omni = OmniBalance(ACCOUNT_ID, PRIVATE_KEY)
+    await omni.startup()
+    
+    # Create intent with multiple actions: transfer, token swap, and auth call
+    commitment = omni.transfer(
+        tokens={"nep141:wrap.near": "5"},
+        receiver_id="alice.near",
+        memo="Test transfer",
+    ).token_diff({
+        "nep141:wrap.near": "-5",
+    }).auth_call("contract.near", msg="test").sign()
+    
+    # Simulate intent before submitting
+    sim = await omni.simulate_intent(commitment)
+    print(sim.logged_intents)
+    
+    # Submit intent to solver network
+    intent_hash = await omni.publish_intents(commitment)
+    print(f"Intent hash: {intent_hash}")
+    
+    # Wait for transaction hash
+    tr_hash = await omni.get_tr_hash_from_intent(intent_hash)
+    print(f"Transaction hash: {tr_hash}")
+    
+    await omni.shutdown()
 
 
 asyncio.run(main())
@@ -97,7 +116,7 @@ tasks = [
   asyncio.create_task(acc.send_money("alisa.near", 1)),
   asyncio.create_task(acc.send_money("alisa.near", 1)),
 ]
-for t in task:
+for t in tasks:
   await t
 ```
 
