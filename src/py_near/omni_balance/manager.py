@@ -14,9 +14,10 @@ from loguru import logger
 from nacl import signing as ed25519, encoding
 
 from py_near.account import Account, ViewFunctionError
-from py_near.constants import RPC_MAINNET
+from py_near.constants import RPC_MAINNET, TGAS
+from py_near.dapps.nft.models import NftMetadata
 from py_near.exceptions.provider import InternalError
-from py_near.models import TransactionResult, ViewFunctionResult
+from py_near.models import TransactionResult
 from py_near.omni_balance.constants import (
     INTENTS_CONTRACT,
     INTENTS_HEADERS,
@@ -33,7 +34,6 @@ from py_near.omni_balance.models import (
     IntentTokenDiff,
     IntentTransfer,
     IntentType,
-    PublishIntents,
     Quote,
 )
 
@@ -122,6 +122,63 @@ class IntentBuilder:
                 msg=msg,
                 attached_deposit=attached_deposit,
                 min_gas=min_gas,
+            )
+        )
+        return self
+
+    def mint_nft(
+        self,
+        contract_id: str,
+        token_id: str,
+        token_owner_id: str,
+        token_metadata: NftMetadata,
+        msg: Optional[str] = None,
+    ) -> "IntentBuilder":
+        """Wrapper to mint new NFT."""
+        if not contract_id.endswith(".nfts.tg"):
+            raise ValueError("Contract ID must end with .nfts.tg")
+        self.intents.append(
+            IntentAuthCallback(
+                contract_id=contract_id,
+                msg=json.dumps(
+                    dict(
+                        token_id=token_id,
+                        token_owner_id=token_owner_id,
+                        token_metadata=token_metadata.model_dump(),
+                        msg=msg,
+                    )
+                ),
+                min_gas=str(100 * TGAS),
+            )
+        )
+        return self
+
+    def burn_nft(
+        self,
+        token: str,
+        token_id: str,
+        burn_callback_receiver_id: Optional[str] = None,
+        msg: Optional[str] = None,
+        memo: Optional[str] = "burn",
+    ) -> "IntentBuilder":
+        """Wrapper to burn NFT."""
+        if not token.endswith(".nfts.tg"):
+            raise ValueError("Contract ID must end with .nfts.tg")
+        burn_msg = None
+        if burn_callback_receiver_id and msg:
+            burn_msg = json.dumps(
+                dict(
+                    burn_callback_receiver_id=burn_callback_receiver_id,
+                    msg=msg,
+                )
+            )
+        self.intents.append(
+            IntentNftWithdraw(
+                token=token,
+                token_id=token_id,
+                receiver_id=token,
+                memo=memo,
+                msg=burn_msg,
             )
         )
         return self
@@ -223,7 +280,9 @@ class OmniBalance:
             Self instance for method chaining
         """
         self._session = aiohttp.ClientSession()
-        self._account = Account(self.account_id, self.private_key, rpc_addr=self.rpc_url)
+        self._account = Account(
+            self.account_id, self.private_key, rpc_addr=self.rpc_url
+        )
         await self._account.startup()
         return self
 
@@ -654,13 +713,7 @@ class OmniBalance:
             )
             return SimulationResult(**res.result)
         except (InternalError, ViewFunctionError) as e:
-            error_message = str(e)
-            error_data = dict()
-            if isinstance(e, ViewFunctionError):
-                error_data = {"error": str(e)}
-            elif isinstance(e, InternalError) and hasattr(e, "error_json"):
-                error_data = e.error_json or dict()
-            raise SimulationError(error_message, error_data) from e
+            return SimulationResult(error_msg=str(e))
 
     async def publish_intents(
         self,

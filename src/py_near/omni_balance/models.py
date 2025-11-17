@@ -360,10 +360,23 @@ class SimulationState(BaseModel):
 class SimulationResult(BaseModel):
     """Model for intent simulation result."""
 
-    intents_executed: List[IntentExecuted]
-    logs: List[str]
-    min_deadline: str
-    state: SimulationState
+    error_msg: Optional[str] = None
+    intents_executed: List[IntentExecuted] = []
+    logs: List[str] = []
+    min_deadline: Optional[str] = None
+    state: Optional[SimulationState] = None
+
+    @property
+    def success(self) -> bool:
+        """Check if simulation was successful."""
+        return self.error_msg is None
+
+    @property
+    def min_deadline_ts(self) -> int:
+        """Get minimum deadline as timestamp."""
+        if not self.min_deadline:
+            return 0
+        return int(datetime.datetime.strptime(self.min_deadline, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp())
 
     @property
     def logged_intents(self) -> List[IntentType]:
