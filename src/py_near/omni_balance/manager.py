@@ -30,6 +30,7 @@ from py_near.omni_balance.models import (
     IntentAuthCallback,
     IntentMtWithdraw,
     IntentNftWithdraw,
+    NativeWithdraw,
     SimulationResult,
     IntentTokenDiff,
     IntentTransfer,
@@ -104,6 +105,22 @@ class IntentBuilder:
                 token_id=token_id,
                 receiver_id=receiver_id,
                 msg=msg,
+            )
+        )
+        return self
+
+    def native_withdraw(
+        self,
+        receiver_id: str,
+        amount: str,
+        memo: Optional[str] = None,
+    ) -> "IntentBuilder":
+        """Add native NEAR withdraw intent."""
+        self.intents.append(
+            NativeWithdraw(
+                receiver_id=receiver_id,
+                amount=amount,
+                memo=memo,
             )
         )
         return self
@@ -652,6 +669,29 @@ class OmniBalance:
             token_id=token_id,
             receiver_id=receiver_id,
             msg=msg,
+        )
+
+    def native_withdraw(
+        self,
+        receiver_id: str,
+        amount: str,
+        memo: Optional[str] = None,
+    ) -> IntentBuilder:
+        """
+        Create native NEAR withdraw intent builder.
+
+        Args:
+            receiver_id: Receiver account ID
+            amount: Amount to withdraw in NEAR
+            memo: Optional memo
+
+        Returns:
+            IntentBuilder instance
+        """
+        return IntentBuilder(self).native_withdraw(
+            receiver_id=receiver_id,
+            amount=amount,
+            memo=memo,
         )
 
     async def register_intent_public_key(

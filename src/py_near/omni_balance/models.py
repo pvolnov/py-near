@@ -23,6 +23,7 @@ class IntentTypeEnum(str, Enum):
     MT_WITHDRAW = "mt_withdraw"
     FT_WITHDRAW = "ft_withdraw"
     NFT_WITHDRAW = "nft_withdraw"
+    NATIVE_WITHDRAW = "native_withdraw"
 
 
 class IntentTokenDiff(BaseModel):
@@ -93,6 +94,15 @@ class IntentNftWithdraw(BaseModel):
     msg: Optional[str] = None
 
 
+class NativeWithdraw(BaseModel):
+    """Intent for native NEAR withdrawal."""
+
+    intent: IntentTypeEnum = IntentTypeEnum.NATIVE_WITHDRAW
+    receiver_id: str
+    amount: str
+    memo: Optional[str] = None
+
+
 IntentType = Union[
     IntentTokenDiff,
     IntentTransfer,
@@ -101,6 +111,7 @@ IntentType = Union[
     IntentAddKey,
     IntentAuthCallback,
     IntentNftWithdraw,
+    NativeWithdraw,
 ]
 
 
@@ -397,6 +408,7 @@ class SimulationResult(BaseModel):
             "mt_withdraw": IntentMtWithdraw,
             "ft_withdraw": IntentFtWithdraw,
             "nft_withdraw": IntentNftWithdraw,
+            "native_withdraw": NativeWithdraw,
         }
 
         for log in self.logs:
@@ -460,6 +472,12 @@ class SimulationResult(BaseModel):
                             "receiver_id": data_item.get("receiver_id"),
                             "memo": data_item.get("memo"),
                             "msg": data_item.get("msg"),
+                        }
+                    elif event_type == "native_withdraw":
+                        intent_data = {
+                            "receiver_id": data_item.get("receiver_id"),
+                            "amount": data_item.get("amount"),
+                            "memo": data_item.get("memo"),
                         }
 
                     intent_data = {k: v for k, v in intent_data.items() if v is not None}
