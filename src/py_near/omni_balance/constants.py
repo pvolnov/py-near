@@ -9,7 +9,7 @@ NEAR_CONTRACT_BY_ASSET: dict[str, str] = dict()
 
 # Solver Bus API URL
 SOLVER_BUS_URL = "https://solver-relay-v2.chaindefuser.com/rpc"
-
+SOLVER_BUS_WSS = "wss://solver-relay-v2.chaindefuser.com/ws"
 # Headers for Solver API requests
 INTENTS_HEADERS = {"Content-Type": "application/json"}
 

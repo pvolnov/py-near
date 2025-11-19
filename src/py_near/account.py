@@ -72,7 +72,7 @@ class Account(object):
         Initialize Account instance.
 
         Args:
-            account_id: NEAR account identifier (e.g., "example.near")
+            account_id: NEAR account identifier (e.g., "examples.near")
             private_key: Private key(s) for signing transactions. Can be:
                 - A single private key (str or bytes)
                 - A list of private keys (str or bytes)
@@ -404,7 +404,7 @@ class Account(object):
         """
         Create a new sub-account under the current account.
 
-        For example, if current account is "test.near", you can create "sub.test.near".
+        For examples, if current account is "test.near", you can create "sub.test.near".
 
         Args:
             account_id: New account ID (must be a subdomain of current account)

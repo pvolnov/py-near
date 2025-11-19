@@ -9,7 +9,7 @@ from py_near.omni_balance.constants import (
     NEAR_CONTRACT_BY_ASSET,
 )
 from py_near.omni_balance.models import QuoteHashOutModel
-from py_near.omni_balance.solver import get_direct_quote
+from py_near.omni_balance.solver.solver_bus_client import get_direct_quote
 
 
 async def _check_with_middleware(
@@ -21,7 +21,7 @@ async def _check_with_middleware(
     Check if swap is possible through intermediate tokens.
 
     Performs sequential swaps through a chain of tokens from path.
-    For example, for path=[A, B, C] performs swap A->B, then B->C.
+    For examples, for path=[A, B, C] performs swap A->B, then B->C.
 
     Args:
         path: List of tokens for sequential swap
@@ -35,7 +35,7 @@ async def _check_with_middleware(
         return None
 
     # Import here to avoid circular dependencies
-    from py_near.omni_balance.quote import get_quote_hash
+    from py_near.omni_balance.solver.quote import get_quote_hash
 
     current_amount_in = amount_in
     current_exact_amount_out = None
