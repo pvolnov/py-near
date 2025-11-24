@@ -796,7 +796,10 @@ class OmniBalance:
         async with self._session.post(SOLVER_BUS_URL, json=rpc_request) as response:
             resp = await response.json()
             if resp["result"]["status"] == "OK":
-                return resp["result"]["intent_hash"]
+                if "intent_hash" in resp["result"]:
+                    return resp["result"]["intent_hash"]
+                if "intent_hashes" in resp["result"]:
+                    return resp["result"]["intent_hashes"]
             raise SimulationError(message=resp["result"]["reason"])
 
     async def get_tr_hash_from_intent(
