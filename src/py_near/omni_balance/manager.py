@@ -19,10 +19,10 @@ from py_near.dapps.nft.models import NftMetadata
 from py_near.exceptions.provider import InternalError
 from py_near.models import TransactionResult
 from py_near.omni_balance.constants import (
+    SOLVER_BUS_URL,
     INTENTS_CONTRACT,
     INTENTS_HEADERS,
     MAX_GAS,
-    SOLVER_BUS_URL,
 )
 from py_near.omni_balance.exceptions import SimulationError
 from py_near.omni_balance.models import (
@@ -235,16 +235,16 @@ class IntentBuilder:
         quote = Quote(
             signer_id=self.manager.account_id,
             nonce=nonce,
-            verifying_contract=INTENTS_CONTRACT,
+            verifying_contract=self.manager.intents_contract,
             deadline=self.manager.get_deadline(deadline_seconds),
             intents=[i.model_dump() for i in self.intents],
         )
         return self.manager.sign_quote(quote)
 
-    async def submit(self) -> dict:
+    async def submit(self) -> str:
         """Sign and submit the intents."""
         commitment = self.sign()
-        return await self.manager.publish_intent(commitment)
+        return await self.manager.publish_intents(commitment)
 
     def get_quote(self) -> Quote:
         """Get quote without signing."""
@@ -258,7 +258,7 @@ class IntentBuilder:
         return Quote(
             signer_id=self.manager.account_id,
             nonce=nonce,
-            verifying_contract=INTENTS_CONTRACT,
+            verifying_contract=self.manager.intents_contract,
             deadline=self.manager.get_deadline(deadline_seconds),
             intents=[i.model_dump() for i in self.intents],
         )
@@ -273,6 +273,8 @@ class OmniBalance:
         private_key: Union[List[str], str],
         rpc_urls: Union[str, List[str]] = None,
         intents_headers=None,
+        solver_bus_url: str = SOLVER_BUS_URL,
+        intents_contract: str = INTENTS_CONTRACT,
         **_: Any,
     ) -> None:
         """
@@ -285,6 +287,8 @@ class OmniBalance:
         """
         if isinstance(private_key, str):
             private_key = [private_key]
+        self.solver_bus_url = solver_bus_url
+        self.intents_contract = intents_contract
         self.rpc_url: Union[str, List[str]] = rpc_urls or [RPC_MAINNET]
         self.account_id: str = account_id
         self.private_key: List[str] = private_key
@@ -432,7 +436,6 @@ class OmniBalance:
         if not await self._account.view_function(
             token_id, "storage_balance_of", {"account_id": account_id}
         ):
-            print(f"Registering {account_id} for {token_id} storage")
             await self._account.function_call(
                 token_id,
                 "storage_deposit",
@@ -440,33 +443,6 @@ class OmniBalance:
                 MAX_GAS,
                 1250000000000000000000,
             )
-
-    async def sign_and_submit_intents(
-        self,
-        intents: List[IntentType],
-        nonce: Optional[str] = None,
-        deadline_seconds: Optional[int] = None,
-    ) -> dict:
-        """
-        Sign and submit intents.
-
-        Args:
-            intents: List of intent objects
-            nonce: Optional nonce, will be generated if not provided
-            deadline_seconds: Optional deadline in seconds, defaults to 600
-
-        Returns:
-            Transaction hash
-        """
-        nonce = self._generate_nonce(nonce)
-        quote = Quote(
-            signer_id=self.account_id,
-            nonce=nonce,
-            verifying_contract=INTENTS_CONTRACT,
-            deadline=self.get_deadline(deadline_seconds or 600),
-            intents=[i.model_dump() for i in intents],
-        )
-        return await self.publish_intent(self.sign_quote(quote))
 
     def sign_quote(self, quote: Union[str, Quote]) -> Commitment:
         """
@@ -513,7 +489,7 @@ class OmniBalance:
         if isinstance(signed_intents, Commitment):
             signed_intents = [signed_intents]
         return await self._account.function_call(
-            INTENTS_CONTRACT,
+            self.intents_contract,
             "execute_intents",
             {"signed": [i.model_dump() for i in signed_intents]},
             MAX_GAS,
@@ -529,11 +505,11 @@ class OmniBalance:
             token_id: Token contract ID
             amount: Amount to deposit
         """
-        await self.register_token_storage(token_id, INTENTS_CONTRACT)
+        await self.register_token_storage(token_id, self.intents_contract)
         res = await self._account.function_call(
             token_id,
             "ft_transfer_call",
-            {"receiver_id": INTENTS_CONTRACT, "amount": amount, "msg": ""},
+            {"receiver_id": self.intents_contract, "amount": amount, "msg": ""},
             MAX_GAS,
             1,
         )
@@ -550,7 +526,7 @@ class OmniBalance:
         res = await self._account.function_call(
             contract_id,
             "nft_transfer_call",
-            {"token_id": token_id, "receiver_id": INTENTS_CONTRACT, "msg": ""},
+            {"token_id": token_id, "receiver_id": self.intents_contract, "msg": ""},
             MAX_GAS,
             1,
         )
@@ -716,7 +692,7 @@ class OmniBalance:
             public_key: Optional public key, defaults to account's public key
         """
         res = await self._account.function_call(
-            INTENTS_CONTRACT,
+            self.intents_contract,
             "add_public_key",
             {"public_key": self._get_public_key(public_key)},
             MAX_GAS,
@@ -733,7 +709,7 @@ class OmniBalance:
             public_key: Optional public key, defaults to account's public key
         """
         res = await self._account.function_call(
-            INTENTS_CONTRACT,
+            self.intents_contract,
             "remove_public_key",
             {"public_key": self._get_public_key(public_key)},
             MAX_GAS,
@@ -759,7 +735,7 @@ class OmniBalance:
         """
         try:
             res = await self._account.view_function(
-                INTENTS_CONTRACT,
+                self.intents_contract,
                 "simulate_intents",
                 {"signed": [self._to_commitment_dict(commitment)]},
             )
@@ -777,12 +753,12 @@ class OmniBalance:
         Publish intent to solver.
 
         Args:
-            commitment: Commitment object or dict
+            signed_intents: Commitment object or list if Commitments
             quote_hashes: Optional list of quote hashes
             wait_for_settlement: Wait for settlement onchain and return transaction hash
 
         Returns:
-            Response JSON
+            Response intent hash or transaction hash if wait_for_settlement is True
         """
         # publish_intents
         if isinstance(signed_intents, list):
@@ -807,7 +783,9 @@ class OmniBalance:
                     )
                 ],
             )
-        async with self._session.post(SOLVER_BUS_URL, json=rpc_request) as response:
+        async with self._session.post(
+            self.solver_bus_url, json=rpc_request
+        ) as response:
             resp = await response.json()
             if resp["result"]["status"] == "OK":
                 if "intent_hash" in resp["result"]:
@@ -840,7 +818,7 @@ class OmniBalance:
                 "get_status", [{"intent_hash": intent_hash}], headers=True
             )
             async with self._session.post(
-                SOLVER_BUS_URL, json=rpc_request, headers=headers
+                self.solver_bus_url, json=rpc_request, headers=headers
             ) as response:
                 intent = await response.json()
                 status = intent["result"]["status"]
