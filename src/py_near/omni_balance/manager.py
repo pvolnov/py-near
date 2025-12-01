@@ -36,7 +36,6 @@ from py_near.omni_balance.models import (
     IntentTransfer,
     IntentType,
     Quote,
-    IntentTransferNotification,
 )
 
 
