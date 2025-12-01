@@ -34,6 +34,11 @@ class IntentTokenDiff(BaseModel):
     referral: Optional[str] = None
 
 
+class IntentTransferNotification(BaseModel):
+    msg: str
+    min_gas: Optional[int] = None
+
+
 class IntentTransfer(BaseModel):
     """Intent for token transfer operations."""
 
@@ -41,6 +46,7 @@ class IntentTransfer(BaseModel):
     receiver_id: str
     tokens: Dict[str, str]
     memo: Optional[str] = None
+    notification: Optional[IntentTransferNotification] = None
 
 
 class IntentAddKey(BaseModel):
@@ -282,7 +288,11 @@ class Commitment(BaseModel):
     def deadline_ts(self) -> int:
         """Get deadline as timestamp."""
         deadline_str = self._get_payload_attr("deadline")
-        return int(datetime.datetime.strptime(deadline_str, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp())
+        return int(
+            datetime.datetime.strptime(
+                deadline_str, "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).timestamp()
+        )
 
     @property
     def deadline(self) -> str:
@@ -292,7 +302,13 @@ class Commitment(BaseModel):
     def to_dict(self):
         """Convert to dictionary, removing None values."""
         res = super().model_dump()
-        for key in ["timestamp", "address", "domain", "authenticator_data", "client_data_json"]:
+        for key in [
+            "timestamp",
+            "address",
+            "domain",
+            "authenticator_data",
+            "client_data_json",
+        ]:
             if not res.get(key):
                 del res[key]
         return res
@@ -387,7 +403,11 @@ class SimulationResult(BaseModel):
         """Get minimum deadline as timestamp."""
         if not self.min_deadline:
             return 0
-        return int(datetime.datetime.strptime(self.min_deadline, "%Y-%m-%dT%H:%M:%S.%fZ").timestamp())
+        return int(
+            datetime.datetime.strptime(
+                self.min_deadline, "%Y-%m-%dT%H:%M:%S.%fZ"
+            ).timestamp()
+        )
 
     @property
     def logged_intents(self) -> List[IntentType]:
@@ -480,7 +500,9 @@ class SimulationResult(BaseModel):
                             "memo": data_item.get("memo"),
                         }
 
-                    intent_data = {k: v for k, v in intent_data.items() if v is not None}
+                    intent_data = {
+                        k: v for k, v in intent_data.items() if v is not None
+                    }
                     try:
                         intent = intent_class(**intent_data)
                         intents.append(intent)
@@ -492,4 +514,3 @@ class SimulationResult(BaseModel):
                 continue
 
         return intents
-

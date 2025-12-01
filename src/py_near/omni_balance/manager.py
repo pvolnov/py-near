@@ -36,6 +36,7 @@ from py_near.omni_balance.models import (
     IntentTransfer,
     IntentType,
     Quote,
+    IntentTransferNotification,
 )
 
 
@@ -55,10 +56,20 @@ class IntentBuilder:
         tokens: Dict[str, str],
         receiver_id: str,
         memo: Optional[str] = None,
+        msg: Optional[str] = None,
+        min_gas: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add transfer intent."""
+        notification = None
+        if msg:
+            notification = IntentTransferNotification(msg=msg, min_gas=min_gas)
         self.intents.append(
-            IntentTransfer(tokens=tokens, receiver_id=receiver_id, memo=memo)
+            IntentTransfer(
+                tokens=tokens,
+                receiver_id=receiver_id,
+                memo=memo,
+                notification=notification,
+            )
         )
         return self
 
