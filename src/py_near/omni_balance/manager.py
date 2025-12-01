@@ -568,6 +568,8 @@ class OmniBalance:
         tokens: Dict[str, str],
         receiver_id: str,
         memo: Optional[str] = None,
+        msg: Optional[str] = None,
+        min_gas: Optional[str] = None,
     ) -> IntentBuilder:
         """
         Create transfer intent builder.
@@ -575,13 +577,15 @@ class OmniBalance:
         Args:
             tokens: Dictionary of token_id -> amount
             receiver_id: Receiver account ID
-            memo: Optional memo
+            memo: Optional memo,
+            msg: Optional message to call mt_on_transfer(..) on receiver address
+            min_gas: Optional minimum gas
 
         Returns:
             IntentBuilder instance
         """
         return IntentBuilder(self).transfer(
-            tokens=tokens, receiver_id=receiver_id, memo=memo
+            tokens=tokens, receiver_id=receiver_id, memo=memo, msg=msg, min_gas=min_gas
         )
 
     def token_diff(
