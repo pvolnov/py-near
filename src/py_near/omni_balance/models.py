@@ -34,11 +34,6 @@ class IntentTokenDiff(BaseModel):
     referral: Optional[str] = None
 
 
-class IntentTransferNotification(BaseModel):
-    msg: str
-    min_gas: Optional[int] = None
-
-
 class IntentTransfer(BaseModel):
     """Intent for token transfer operations."""
 
@@ -46,7 +41,8 @@ class IntentTransfer(BaseModel):
     receiver_id: str
     tokens: Dict[str, str]
     memo: Optional[str] = None
-    notification: Optional[IntentTransferNotification] = None
+    msg: str
+    min_gas: Optional[int] = None
 
 
 class IntentAddKey(BaseModel):

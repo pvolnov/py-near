@@ -60,15 +60,13 @@ class IntentBuilder:
         min_gas: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add transfer intent."""
-        notification = None
-        if msg:
-            notification = IntentTransferNotification(msg=msg, min_gas=min_gas)
         self.intents.append(
             IntentTransfer(
                 tokens=tokens,
                 receiver_id=receiver_id,
                 memo=memo,
-                notification=notification,
+                msg=msg,
+                min_gas=min_gas,
             )
         )
         return self
@@ -774,6 +772,7 @@ class OmniBalance:
         self,
         signed_intents: Union[Commitment, dict, List[Commitment], List[dict]],
         quote_hashes: Optional[List[str]] = None,
+        wait_for_settlement: bool = False,
     ) -> str:
         """
         Publish intent to solver.
@@ -781,6 +780,7 @@ class OmniBalance:
         Args:
             commitment: Commitment object or dict
             quote_hashes: Optional list of quote hashes
+            wait_for_settlement: Wait for settlement onchain and return transaction hash
 
         Returns:
             Response JSON
@@ -812,9 +812,15 @@ class OmniBalance:
             resp = await response.json()
             if resp["result"]["status"] == "OK":
                 if "intent_hash" in resp["result"]:
-                    return resp["result"]["intent_hash"]
+                    intent_hash = resp["result"]["intent_hash"]
+                    if wait_for_settlement:
+                        return await self.get_tr_hash_from_intent(intent_hash)
+                    return intent_hash
                 if "intent_hashes" in resp["result"]:
-                    return resp["result"]["intent_hashes"]
+                    intent_hashes = resp["result"]["intent_hashes"]
+                    if wait_for_settlement and intent_hashes:
+                        return await self.get_tr_hash_from_intent(intent_hashes[0])
+                    return intent_hashes
             raise SimulationError(message=resp["result"]["reason"])
 
     async def get_tr_hash_from_intent(
