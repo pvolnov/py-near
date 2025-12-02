@@ -4,12 +4,10 @@ import datetime
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union, Literal, Callable
-
-from pydantic import BaseModel, field_validator, ConfigDict
+from typing import Any, Dict, List, Optional, Type, Union
 
 from loguru import logger
-from pydantic.main import IncEx
+from pydantic import BaseModel, field_validator
 
 from py_near.omni_balance.constants import INTENTS_CONTRACT
 
