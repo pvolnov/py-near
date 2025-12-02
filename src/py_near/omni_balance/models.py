@@ -252,16 +252,10 @@ class Commitment(BaseModel):
 
         return models[self.standard](**payload)
 
-    def _get_payload_attr(self, attr: str, ton_attr: str = None, nep_attr: str = None):
+    def _get_payload_attr(self, attr: str):
         """Helper to extract attribute from payload structure."""
         ps = self.payload_structure
-        if isinstance(ps, TonPayload):
-            return getattr(ps.text, ton_attr or attr)
-        if isinstance(ps, NEP413Payload):
-            return getattr(ps.message, nep_attr or attr)
-        if isinstance(ps, (RawPayload, Erc191Payload, WebAuthnPayload)):
-            return getattr(ps, attr)
-        raise ValueError("Unknown payload type")
+        return getattr(ps, attr)
 
     @property
     def intents(self) -> List[IntentType]:
