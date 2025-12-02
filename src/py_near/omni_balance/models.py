@@ -35,6 +35,7 @@ class IntentTokenDiff(BaseModel):
 
 class IntentTransfer(BaseModel):
     """Intent for token transfer operations."""
+
     intent: IntentTypeEnum = IntentTypeEnum.TRANSFER
     receiver_id: str
     tokens: Dict[str, str]
@@ -252,40 +253,51 @@ class Commitment(BaseModel):
 
         return models[self.standard](**payload)
 
-    def _get_payload_attr(self, attr: str):
-        """Helper to extract attribute from payload structure."""
-        ps = self.payload_structure
-        return getattr(ps, attr)
-
     @property
     def intents(self) -> List[IntentType]:
         """Extract intents from payload structure."""
-        return self._get_payload_attr("intents")
+        ps = self.payload_structure
+        if isinstance(ps, NEP413Payload):
+            return ps.message.intents
+        if isinstance(ps, TonPayload):
+            return ps.text.intents
+        return ps.intents
 
     @property
     def signer_id(self) -> str:
         """Extract signer ID from payload structure."""
-        return self._get_payload_attr("signer_id")
+        ps = self.payload_structure
+        if isinstance(ps, NEP413Payload):
+            return ps.message.signer_id
+        if isinstance(ps, TonPayload):
+            return ps.text.signer_id
+        return ps.signer_id
 
     @property
     def nonce(self):
         """Extract nonce from payload structure."""
-        return self._get_payload_attr("nonce")
+        ps = self.payload_structure
+        if isinstance(ps, TonPayload):
+            return ps.text.nonce
+        return ps.nonce
 
     @property
     def deadline_ts(self) -> int:
-        """Get deadline as timestamp."""
-        deadline_str = self._get_payload_attr("deadline")
         return int(
             datetime.datetime.strptime(
-                deadline_str, "%Y-%m-%dT%H:%M:%S.%fZ"
+                self.deadline, "%Y-%m-%dT%H:%M:%S.%fZ"
             ).timestamp()
         )
 
     @property
     def deadline(self) -> str:
-        """Get deadline as string."""
-        return self._get_payload_attr("deadline")
+        ps = self.payload_structure
+        if isinstance(ps, TonPayload):
+            return ps.text.deadline
+        elif isinstance(ps, NEP413Payload):
+            return ps.message.deadline
+        else:
+            return getattr(ps, "deadline")
 
     def to_dict(self):
         """Convert to dictionary, removing None values."""
