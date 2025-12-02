@@ -169,7 +169,7 @@ class IntentBuilder:
                     dict(
                         token_id=token_id,
                         token_owner_id=token_owner_id,
-                        token_metadata=token_metadata.model_dump(),
+                        token_metadata=token_metadata.model_dump(exclude_none=True, mode='json'),
                         msg=msg,
                     )
                 ),
@@ -237,7 +237,7 @@ class IntentBuilder:
             nonce=nonce,
             verifying_contract=self.manager.intents_contract,
             deadline=self.manager.get_deadline(deadline_seconds),
-            intents=[i.model_dump() for i in self.intents],
+            intents=[i.model_dump(exclude_none=True, mode='json') for i in self.intents],
         )
         return self.manager.sign_quote(quote)
 
@@ -260,7 +260,7 @@ class IntentBuilder:
             nonce=nonce,
             verifying_contract=self.manager.intents_contract,
             deadline=self.manager.get_deadline(deadline_seconds),
-            intents=[i.model_dump() for i in self.intents],
+            intents=[i.model_dump(exclude_none=True, mode='json') for i in self.intents],
         )
 
 
@@ -455,7 +455,7 @@ class OmniBalance:
             Commitment with signature
         """
         if isinstance(quote, Quote):
-            quote_data = quote.model_dump_json()
+            quote_data = quote.model_dump_json(exclude_none=True)
         elif isinstance(quote, str):
             quote_data = quote
         elif isinstance(quote, dict):
@@ -491,7 +491,7 @@ class OmniBalance:
         return await self._account.function_call(
             self.intents_contract,
             "execute_intents",
-            {"signed": [i.model_dump() for i in signed_intents]},
+            {"signed": [i.model_dump(exclude_none=True, mode='json') for i in signed_intents]},
             MAX_GAS,
             0,
             included=True,

@@ -4,11 +4,12 @@ import datetime
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union, Literal, Callable
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 from loguru import logger
+from pydantic.main import IncEx
 
 from py_near.omni_balance.constants import INTENTS_CONTRACT
 
@@ -36,12 +37,11 @@ class IntentTokenDiff(BaseModel):
 
 class IntentTransfer(BaseModel):
     """Intent for token transfer operations."""
-
     intent: IntentTypeEnum = IntentTypeEnum.TRANSFER
     receiver_id: str
     tokens: Dict[str, str]
     memo: Optional[str] = None
-    msg: str
+    msg: Optional[str] = None
     min_gas: Optional[int] = None
 
 
