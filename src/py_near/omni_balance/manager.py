@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import collections
 import datetime
 import json
 import random
@@ -45,10 +46,24 @@ class IntentBuilder:
     def __init__(self, manager: "OmniBalance") -> None:
         """Initialize IntentBuilder with OmniBalance manager."""
         self.manager = manager
-        self.intents: List[IntentType] = []
+        self._intents: List[IntentType] = []
         self.nonce: Optional[str] = None
         self.deadline_seconds: Optional[int] = None
         self.seed: Optional[str] = None
+        self._token_diff = collections.defaultdict(int)
+        self.referral = None
+
+    @property
+    def intents(self):
+        intents = self._intents
+        if self._token_diff:
+            diff = {}
+            for token, amount in self._token_diff.items():
+                if amount != 0:
+                    diff[token] = str(amount)
+            if diff:
+                intents.append(IntentTokenDiff(diff=diff, referral=self.referral))
+        return intents
 
     def transfer(
         self,
@@ -59,7 +74,7 @@ class IntentBuilder:
         min_gas: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add transfer intent."""
-        self.intents.append(
+        self._intents.append(
             IntentTransfer(
                 tokens=tokens,
                 receiver_id=receiver_id,
@@ -76,7 +91,25 @@ class IntentBuilder:
         referral: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add token diff intent."""
-        self.intents.append(IntentTokenDiff(diff=diff, referral=referral))
+        self._intents.append(IntentTokenDiff(diff=diff, referral=referral))
+        return self
+
+    def take(
+        self,
+        token: str,
+        amount: Union[str, int],
+    ) -> "IntentBuilder":
+        """Add token diff intent."""
+        self._token_diff[token] += int(amount)
+        return self
+
+    def give(
+        self,
+        token: str,
+        amount: Union[str, int],
+    ) -> "IntentBuilder":
+        """Add token diff intent."""
+        self._token_diff[token] -= int(amount)
         return self
 
     def mt_withdraw(
@@ -88,7 +121,7 @@ class IntentBuilder:
         token: str = "v2_1.omni.hot.tg",
     ) -> "IntentBuilder":
         """Add multi-token withdraw intent."""
-        self.intents.append(
+        self._intents.append(
             IntentMtWithdraw(
                 token=token,
                 receiver_id=receiver_id,
@@ -107,7 +140,7 @@ class IntentBuilder:
         msg: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add NFT withdraw intent."""
-        self.intents.append(
+        self._intents.append(
             IntentNftWithdraw(
                 token=contract_id,
                 token_id=token_id,
@@ -124,7 +157,7 @@ class IntentBuilder:
         memo: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add native NEAR withdraw intent."""
-        self.intents.append(
+        self._intents.append(
             NativeWithdraw(
                 receiver_id=receiver_id,
                 amount=amount,
@@ -141,7 +174,7 @@ class IntentBuilder:
         min_gas: Optional[str] = None,
     ) -> "IntentBuilder":
         """Add auth callback intent."""
-        self.intents.append(
+        self._intents.append(
             IntentAuthCallback(
                 contract_id=contract_id,
                 msg=msg,
@@ -162,14 +195,16 @@ class IntentBuilder:
         """Wrapper to mint new NFT."""
         if not contract_id.endswith(".nfts.tg"):
             raise ValueError("Contract ID must end with .nfts.tg")
-        self.intents.append(
+        self._intents.append(
             IntentAuthCallback(
                 contract_id=contract_id,
                 msg=json.dumps(
                     dict(
                         token_id=token_id,
                         token_owner_id=token_owner_id,
-                        token_metadata=token_metadata.model_dump(exclude_none=True, mode='json'),
+                        token_metadata=token_metadata.model_dump(
+                            exclude_none=True, mode="json"
+                        ),
                         msg=msg,
                     )
                 ),
@@ -197,7 +232,7 @@ class IntentBuilder:
                     msg=msg,
                 )
             )
-        self.intents.append(
+        self._intents.append(
             IntentNftWithdraw(
                 token=token,
                 token_id=token_id,
@@ -216,6 +251,11 @@ class IntentBuilder:
     def with_deadline(self, deadline_seconds: Optional[int]) -> "IntentBuilder":
         """Set deadline for intents."""
         self.deadline_seconds = deadline_seconds
+        return self
+
+    def with_referral(self, referral: str) -> "IntentBuilder":
+        """Set deadline for intents."""
+        self.referral = referral
         return self
 
     def with_seed(self, seed: Optional[str]) -> "IntentBuilder":
@@ -237,7 +277,9 @@ class IntentBuilder:
             nonce=nonce,
             verifying_contract=self.manager.intents_contract,
             deadline=self.manager.get_deadline(deadline_seconds),
-            intents=[i.model_dump(exclude_none=True, mode='json') for i in self.intents],
+            intents=[
+                i.model_dump(exclude_none=True, mode="json") for i in self.intents
+            ],
         )
         return self.manager.sign_quote(quote)
 
@@ -246,21 +288,29 @@ class IntentBuilder:
         commitment = self.sign()
         return await self.manager.publish_intents(commitment)
 
+    def get_matched_token_diff(self) -> IntentTokenDiff:
+        """Sign and submit the intents."""
+        diff = {}
+        for token, amount in self._token_diff.items():
+            if amount > 0:
+                diff[token] = str(-amount)
+            else:
+                diff[token] = str(amount)
+        return IntentTokenDiff(diff=diff, referral=self.referral)
+
     def get_quote(self) -> Quote:
         """Get quote without signing."""
         if not self.intents:
             raise ValueError("No intents to create quote")
         nonce = self.manager._generate_nonce(self.seed or self.nonce)
-        default_deadline = (
-            60 if any(isinstance(i, IntentMtWithdraw) for i in self.intents) else 600
-        )
-        deadline_seconds = self.deadline_seconds or default_deadline
         return Quote(
             signer_id=self.manager.account_id,
             nonce=nonce,
             verifying_contract=self.manager.intents_contract,
-            deadline=self.manager.get_deadline(deadline_seconds),
-            intents=[i.model_dump(exclude_none=True, mode='json') for i in self.intents],
+            deadline=self.manager.get_deadline(self.deadline_seconds),
+            intents=[
+                i.model_dump(exclude_none=True, mode="json") for i in self._intents
+            ],
         )
 
 
@@ -491,7 +541,11 @@ class OmniBalance:
         return await self._account.function_call(
             self.intents_contract,
             "execute_intents",
-            {"signed": [i.model_dump(exclude_none=True, mode='json') for i in signed_intents]},
+            {
+                "signed": [
+                    i.model_dump(exclude_none=True, mode="json") for i in signed_intents
+                ]
+            },
             MAX_GAS,
             0,
             included=True,
@@ -682,9 +736,99 @@ class OmniBalance:
             memo=memo,
         )
 
-    async def register_intent_public_key(
-        self, public_key: Optional[str] = None
-    ) -> None:
+    def take(
+        self,
+        token: str,
+        amount: Union[str, int],
+    ) -> IntentBuilder:
+        """
+        Create take intent builder.
+
+        Args:
+            token: Token contract ID
+            amount: Amount to take
+
+        Returns:
+            IntentBuilder instance
+        """
+        return IntentBuilder(self).take(token=token, amount=amount)
+
+    def give(
+        self,
+        token: str,
+        amount: Union[str, int],
+    ) -> IntentBuilder:
+        """
+        Create give intent builder.
+
+        Args:
+            token: Token contract ID
+            amount: Amount to give
+
+        Returns:
+            IntentBuilder instance
+        """
+        return IntentBuilder(self).give(token=token, amount=amount)
+
+    def mint_nft(
+        self,
+        contract_id: str,
+        token_id: str,
+        token_owner_id: str,
+        token_metadata: NftMetadata,
+        msg: Optional[str] = None,
+    ) -> IntentBuilder:
+        """
+        Create mint NFT intent builder.
+
+        Args:
+            contract_id: NFT contract ID
+            token_id: Token ID
+            token_owner_id: Token owner account ID
+            token_metadata: NFT metadata
+            msg: Optional message
+
+        Returns:
+            IntentBuilder instance
+        """
+        return IntentBuilder(self).mint_nft(
+            contract_id=contract_id,
+            token_id=token_id,
+            token_owner_id=token_owner_id,
+            token_metadata=token_metadata,
+            msg=msg,
+        )
+
+    def burn_nft(
+        self,
+        token: str,
+        token_id: str,
+        burn_callback_receiver_id: Optional[str] = None,
+        msg: Optional[str] = None,
+        memo: Optional[str] = "burn",
+    ) -> IntentBuilder:
+        """
+        Create burn NFT intent builder.
+
+        Args:
+            token: NFT contract ID
+            token_id: Token ID
+            burn_callback_receiver_id: Optional burn callback receiver ID
+            msg: Optional message
+            memo: Optional memo
+
+        Returns:
+            IntentBuilder instance
+        """
+        return IntentBuilder(self).burn_nft(
+            token=token,
+            token_id=token_id,
+            burn_callback_receiver_id=burn_callback_receiver_id,
+            msg=msg,
+            memo=memo,
+        )
+
+    async def add_intent_public_key(self, public_key: Optional[str] = None) -> None:
         """
         Register public key for intents.
 

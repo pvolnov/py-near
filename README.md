@@ -59,31 +59,31 @@ PRIVATE_KEY = "ed25519:..."
 
 
 async def main():
-    omni = OmniBalance(ACCOUNT_ID, PRIVATE_KEY)
-    await omni.startup()
-    
-    # Create intent with multiple actions: transfer, token swap, and auth call
-    commitment = omni.transfer(
-        tokens={"nep141:wrap.near": "5"},
-        receiver_id="alice.near",
-        memo="Test transfer",
-    ).token_diff({
-        "nep141:wrap.near": "-5",
-    }).auth_call("contract.near", msg="test").sign()
-    
-    # Simulate intent before submitting
-    sim = await omni.simulate_intent(commitment)
-    print(sim.logged_intents)
-    
-    # Submit intent to solver network
-    intent_hash = await omni.publish_intents(commitment)
-    print(f"Intent hash: {intent_hash}")
-    
-    # Wait for transaction hash
-    tr_hash = await omni.get_tr_hash_from_intent(intent_hash)
-    print(f"Transaction hash: {tr_hash}")
-    
-    await omni.shutdown()
+   omni = OmniBalance(ACCOUNT_ID, PRIVATE_KEY)
+   await omni.startup()
+
+   # Create intent with multiple actions: transfer, token swap, and auth call
+   commitment = omni.transfer(
+      tokens={"nep141:wrap.near": "5"},
+      receiver_id="alice.near",
+      memo="Test transfer",
+   )._token_diff({
+      "nep141:wrap.near": "-5",
+   }).auth_call("contract.near", msg="test").sign()
+
+   # Simulate intent before submitting
+   sim = await omni.simulate_intent(commitment)
+   print(sim.logged_intents)
+
+   # Submit intent to solver network
+   intent_hash = await omni.publish_intents(commitment)
+   print(f"Intent hash: {intent_hash}")
+
+   # Wait for transaction hash
+   tr_hash = await omni.get_tr_hash_from_intent(intent_hash)
+   print(f"Transaction hash: {tr_hash}")
+
+   await omni.shutdown()
 
 
 asyncio.run(main())
