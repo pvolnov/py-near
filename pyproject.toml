@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-near"
-version = "1.2.19"
+version = "1.2.20"
 description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
 authors = ["pvolnov <peter@hot-labs.org>"]
 readme = "README.md"
@@ -30,7 +30,7 @@ build = "^1.0.0"
 
 [project]
 name = "py-near"
-version = "1.2.19"
+version = "1.2.20"
 description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
 authors = [{ name = "pvolnov", email = "peter@hot-labs.org" }]
 license = { file = "LICENSE" }

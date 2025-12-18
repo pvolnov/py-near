@@ -976,19 +976,22 @@ class OmniBalance:
                     return None
         return None
 
-    async def is_nonce_used(self, nonce: str) -> bool:
+    async def is_nonce_used(self, nonce: str, account_id: Optional[str] = None) -> bool:
         """
         Check if nonce has been used.
 
         Args:
             nonce: Nonce to check
+            account_id: Optional account ID, defaults to self.account_id
 
         Returns:
             True if nonce is used, False otherwise
         """
+        if account_id is None:
+            account_id = self.account_id
         is_nonce_used = await self._account.view_function(
             INTENTS_CONTRACT,
             "is_nonce_used",
-            {"nonce": nonce, "account_id": self.account_id},
+            {"nonce": nonce, "account_id": account_id},
         )
         return is_nonce_used.result
