@@ -975,3 +975,20 @@ class OmniBalance:
                     logger.error(f"Intent {intent_hash} failed with status {status}")
                     return None
         return None
+
+    async def is_nonce_used(self, nonce: str) -> bool:
+        """
+        Check if nonce has been used.
+
+        Args:
+            nonce: Nonce to check
+
+        Returns:
+            True if nonce is used, False otherwise
+        """
+        is_nonce_used = await self._account.view_function(
+            INTENTS_CONTRACT,
+            "is_nonce_used",
+            {"nonce": nonce, "account_id": self.account_id},
+        )
+        return is_nonce_used.result
