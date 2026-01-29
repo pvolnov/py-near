@@ -89,6 +89,64 @@ async def main():
 asyncio.run(main())
 ```
 
+### Working with HeX Orderbook
+
+HeX is a decentralized orderbook for trading tokens on NEAR. It supports limit orders, market orders, and order management.
+
+```python
+from py_near.omni_balance import OmniBalance
+from py_near.dapps.hex import OrderbookClient
+import asyncio
+
+ACCOUNT_ID = "bob.near"
+PRIVATE_KEY = "ed25519:..."
+
+async def main():
+    async with OmniBalance(ACCOUNT_ID, PRIVATE_KEY) as omni:
+        # Initialize orderbook for HOT/USDT pair
+        ob = OrderbookClient(
+            omni,
+            base="nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
+            decimal_base=9,
+        )
+        
+        # Get and print orderbook
+        orderbook = await ob.get_orderbook()
+        orderbook.print()
+        
+        # Simulate market order to get quote
+        amount_in = int(0.1 * 10**9)  # 0.1 HOT
+        result = await ob.simulate_market_order(
+            str(amount_in),
+            token_in="nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
+            min_amount_out="0",
+        )
+        print(f"Expected output: {result.book_fill_result.taker_receive_total}")
+        
+        # Place limit order
+        tx = await ob.place_limit_order(
+            price=ob.get_price(1.50),  # $1.50 per HOT
+            amount=str(int(0.35 * 10**6)),
+            token_in="nep141:usdt.tether-token.near",
+        )
+        print(f"Limit order: {tx}")
+        
+        # Place market order
+        tx = await ob.place_market_order(
+            amount=str(int(0.1 * 10**9)),
+            token_in="nep245:v2_1.omni.hot.tg:4444119_wyixUKCL",
+        )
+        print(f"Market order: {tx}")
+        
+        # Cancel orders
+        orders = await ob.get_orders()
+        for order in orders:
+            if order.order.maker == omni.account_id:
+                await ob.cancel_order(order.hash)
+
+asyncio.run(main())
+```
+
 ### Parallel requests
 
 Only one parallel request can be made from one private key.

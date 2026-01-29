@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "py-near"
-version = "1.2.20"
+version = "1.2.21"
 description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
 authors = ["pvolnov <peter@hot-labs.org>"]
 readme = "README.md"
@@ -15,7 +15,6 @@ pydantic = "^2.6.2"
 eth-keys = "^0.7.0"
 aiohttp = ">=3.9.5"
 py-near-primitives = "^0.2.12"
-websockets = "^15.0.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^21.12b0"
@@ -30,7 +29,7 @@ build = "^1.0.0"
 
 [project]
 name = "py-near"
-version = "1.2.20"
+version = "1.2.21"
 description = "Async client for NEAR Blockchain with native HOT Protocol & NEAR Intents support"
 authors = [{ name = "pvolnov", email = "peter@hot-labs.org" }]
 license = { file = "LICENSE" }

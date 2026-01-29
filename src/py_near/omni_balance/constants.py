@@ -1,4 +1,5 @@
 """Constants for omni_balance operations."""
+from enum import Enum
 
 # Standard tokens for intermediate swaps
 USDT_TOKEN = "usdt.tether-token.near"
@@ -18,4 +19,9 @@ INTENTS_CONTRACT = "intents.near"
 
 # Maximum gas for transactions
 MAX_GAS = 300_000_000_000_000
+
+class OmniToken(str, Enum):
+    USDT = "nep141:usdt.tether-token.near"
+    WRAP_NEAR = "nep141:wrap.near"
+    GNK = "nep245:v2_1.omni.hot.tg:4444119_wyixUKCL"
 

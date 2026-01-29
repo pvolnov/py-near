@@ -13,6 +13,7 @@ Welcome to py-near's documentation!
    clients/staking.rst
    clients/delegate.rst
    clients/omni-balance.rst
+   clients/hex.rst
 
 .. include:: quickstart.rst
 .. include:: account.rst
@@ -20,4 +21,5 @@ Welcome to py-near's documentation!
 .. include:: clients/staking.rst
 .. include:: clients/delegate.rst
 .. include:: clients/omni-balance.rst
+.. include:: clients/hex.rst
 
