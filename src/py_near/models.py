@@ -7,6 +7,9 @@ from typing import List, Any, Optional, Union
 
 import base58
 import py_near_primitives
+from near_jsonrpc_models import AccessKeyView, AccessKeyPermissionViewFullAccess, \
+    AccessKeyPermissionViewFunctionCall, AccessKeyPermissionViewGasKeyFunctionCall, \
+    AccessKeyPermissionViewGasKeyFullAccess
 from py_near_primitives.py_near_primitives import (
     DelegateAction,
     TransferAction,
@@ -110,6 +113,8 @@ class ActionType(str, Enum):
 class PublicKeyPermissionType(str, Enum):
     """Enumeration of public key permission types."""
 
+    GAS_KEY_FUNCTION_CALL = "GasKeyFunctionCall"
+    GAS_KEY_FULL_ACCESS = "GasKeyFullAccess"
     FULL_ACCESS = "FullAccess"
     FUNCTION_CALL = "FunctionCall"
 
@@ -155,6 +160,48 @@ class AccessKey:
             permission_type=PublicKeyPermissionType.FUNCTION_CALL,
             **permission_data,
         )
+    
+    @classmethod
+    def from_rpc(cls, view: AccessKeyView) -> "AccessKey":
+        perm = view.permission.root
+
+        # FullAccess
+        if isinstance(perm, AccessKeyPermissionViewFullAccess):
+            return cls(
+                nonce=view.nonce,
+                permission_type=PublicKeyPermissionType.FULL_ACCESS,
+            )
+
+        # FunctionCall
+        if isinstance(perm, AccessKeyPermissionViewFunctionCall):
+            payload = perm.FunctionCall
+            return cls(
+                nonce=view.nonce,
+                permission_type=PublicKeyPermissionType.FUNCTION_CALL,
+                allowance=str(payload.allowance) if payload.allowance else None,
+                receiver_id=payload.receiver_id,
+                method_names=payload.method_names,
+            )
+
+        # GasKeyFunctionCall
+        if isinstance(perm, AccessKeyPermissionViewGasKeyFunctionCall):
+            payload = perm.GasKeyFunctionCall
+            return cls(
+                nonce=view.nonce,
+                permission_type=PublicKeyPermissionType.GAS_KEY_FUNCTION_CALL,
+                allowance=str(payload.allowance) if payload.allowance else None,
+                receiver_id=payload.receiver_id,
+                method_names=payload.method_names,
+            )
+
+        # GasKeyFullAccess
+        if isinstance(perm, AccessKeyPermissionViewGasKeyFullAccess):
+            return cls(
+                nonce=view.nonce,
+                permission_type=PublicKeyPermissionType.GAS_KEY_FULL_ACCESS,
+            )
+
+        raise ValueError(f"Unsupported AccessKeyPermissionView: {type(perm)}")
 
 
 @dataclass

@@ -5,8 +5,13 @@ import sys
 from typing import List, Union, Dict, Optional
 
 from nacl.signing import VerifyKey
+from near_jsonrpc_client import NearClientAsync
+from near_jsonrpc_models import RpcQueryResponseAccessKeyList, RpcQueryResponseAccessKeyView, RpcQueryResponse, \
+    RpcQueryResponseAccountView
 
 from py_near.constants import RPC_MAINNET
+from py_near.mapper.rpc_account_access_key_mapper import RpcAccountAccessKeyMapper
+from py_near.mapper.rpc_public_key_mapper import RpcPublicKeyMapper
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 10:
     from collections.abc import MutableSet, MutableMapping
@@ -79,7 +84,8 @@ class Account(object):
                 - None (for read-only operations)
             rpc_addr: RPC endpoint URL or list of URLs for NEAR network
         """
-        self._provider = JsonProvider(rpc_addr)
+        near_client = NearClientAsync(rpc_urls=rpc_addr)
+        self._provider = JsonProvider(rpc_addr, near_client)
         self.account_id = account_id
         if private_key is None:
             private_keys = []
@@ -120,7 +126,7 @@ class Account(object):
         """
         self._lock = asyncio.Lock()
         self._lock_by_pk = collections.defaultdict(asyncio.Lock)
-        self.chain_id = (await self._provider.get_status())["chain_id"]
+        self.chain_id = (await self._provider.get_status()).chain_id
 
     async def shutdown(self):
         """
@@ -140,12 +146,11 @@ class Account(object):
         """
         if self._latest_block_hash_ts + 50 > utils.timestamp():
             return
-        self._latest_block_hash = (await self._provider.get_status())["sync_info"][
-            "latest_block_hash"
-        ]
-        self._latest_block_height = (await self._provider.get_status())["sync_info"][
-            "latest_block_height"
-        ]
+
+        status = await self._provider.get_status()
+
+        self._latest_block_hash = status.sync_info.latest_block_hash.root
+        self._latest_block_height = status.sync_info.latest_block_height
         self._latest_block_hash_ts = utils.timestamp()
 
     async def sign_and_submit_tx(
@@ -260,12 +265,11 @@ class Account(object):
 
         private_key = signing.SigningKey(pk[:32], encoder=encoding.RawEncoder)
         public_key = private_key.verify_key
-        resp = await self._provider.get_access_key(
+        resp: RpcQueryResponseAccessKeyView = await self._provider.get_access_key(
             self.account_id, base58.b58encode(public_key.encode()).decode("utf8")
         )
-        if "error" in resp:
-            raise ValueError(resp["error"])
-        return AccountAccessKey(**resp)
+
+        return RpcAccountAccessKeyMapper.to_high_level(resp)
 
     async def get_access_key_list(self, account_id: str = None) -> List[PublicKey]:
         """
@@ -279,11 +283,12 @@ class Account(object):
         """
         if account_id is None:
             account_id = self.account_id
-        resp = await self._provider.get_access_key_list(account_id)
+        resp: RpcQueryResponseAccessKeyList = await self._provider.get_access_key_list(account_id)
         result = []
-        if "keys" in resp and isinstance(resp["keys"], list):
-            for key in resp["keys"]:
-                result.append(PublicKey(**key))
+
+        for key in resp.keys:
+            result.append(RpcPublicKeyMapper.to_high_level(key))
+
         return result
 
     async def fetch_state(self) -> dict:
@@ -293,7 +298,8 @@ class Account(object):
         Returns:
             Dictionary containing account information (balance, code_hash, etc.)
         """
-        return await self._provider.get_account(self.account_id)
+        account: RpcQueryResponse.RpcQueryResponseAccountView = await self._provider.get_account(self.account_id)
+        return account.model_dump()
 
     async def send_money(
         self, account_id: str, amount: int, nowait: bool = False, included=False
@@ -558,7 +564,7 @@ class Account(object):
         """
         return await self.sign_and_submit_tx(
             self.account_id,
-            [transactions.create_staking_action(public_key, amount)],
+            [transactions.create_staking_action(int(amount), public_key)],
             nowait,
         )
 
@@ -568,7 +574,7 @@ class Account(object):
         method_name: str,
         args: dict,
         block_id: Optional[int] = None,
-        threshold: Optional[int] = None,
+        threshold: Optional[int] = None
     ) -> ViewFunctionResult:
         """
         Call a view function on a smart contract (read-only).
@@ -589,16 +595,14 @@ class Account(object):
         Raises:
             ViewFunctionError: If the view function call fails
         """
+
         result = await self._provider.view_call(
             contract_id,
             method_name,
             json.dumps(args).encode("utf8"),
-            block_id=block_id,
-            threshold=threshold,
+            block_id=block_id
         )
-        if "error" in result:
-            raise ViewFunctionError(result["error"])
-        result["result"] = json.loads("".join([chr(x) for x in result["result"]]))
+
         return ViewFunctionResult(**result)
 
     async def create_delegate_action(
@@ -682,10 +686,11 @@ class Account(object):
         """
         if account_id is None:
             account_id = self.account_id
-        data = await self._provider.get_account(account_id)
+        data: RpcQueryResponseAccountView = await self._provider.get_account(account_id)
         if not data:
             return 0
-        return int(data["amount"])
+
+        return int(data.amount.root)
 
     @property
     def ft(self):
