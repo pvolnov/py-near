@@ -176,9 +176,8 @@ class Account(object):
         pk = await self._free_signers.get()
         await self._free_signers.put(pk)
 
-        if self._access_key_nonce[pk] == 0:
-            access_key = await self.get_access_key(pk)
-            self._access_key_nonce[pk] = access_key.nonce
+        access_key = await self.get_access_key(pk)
+        self._access_key_nonce[pk] = max(self._access_key_nonce[pk], access_key.nonce)
         self._access_key_nonce[pk] += 1
 
         block_hash = base58.b58decode(self._latest_block_hash.encode("utf8"))
